@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EHS 系统 · 多设备预览器</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: #0f131a; color: #e6ecf5; }
+
+  /* ===== 顶部工具栏：单行紧凑 ===== */
+  .toolbar { flex: 0 0 auto; background: #151b26; border-bottom: 1px solid #232c3b; padding: 7px 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+  .label { color: #8a97ad; white-space: nowrap; }
+  select, input, button { background: #232c3b; color: #e6ecf5; border: 1px solid #344054; border-radius: 6px; padding: 4px 8px; font-size: 12px; height: 28px; }
+  button { cursor: pointer; line-height: 1; } button:hover { background: #2c3749; }
+  #device { min-width: 150px; max-width: 220px; }
+  #bg { min-width: 110px; }
+  #zoom { width: 80px; padding: 0; }
+  #url { width: 130px; }
+  .sep { width: 1px; height: 18px; background: #344054; }
+  .note { color: #ffb454; font-size: 11px; }
+
+  /* ===== 舞台：完全居中 ===== */
+  .stage { flex: 1 1 auto; overflow: auto; display: flex; justify-content: center; align-items: center; padding: 24px; transition: background .25s; }
+  .bg-studio  { background: linear-gradient(135deg,#eef2f8 0%,#d7deec 100%); }
+  .bg-twilight{ background: linear-gradient(135deg,#fbc2eb 0%,#a6c1ee 100%); }
+  .bg-ocean   { background: linear-gradient(135deg,#2b5876 0%,#4e4376 100%); }
+  .bg-forest  { background: linear-gradient(135deg,#134e5e 0%,#71b280 100%); }
+  .bg-dusk    { background: radial-gradient(circle at 50% 25%, #3a4156 0%, #161a23 100%); }
+  .bg-mono    { background: linear-gradient(135deg,#525f73 0%,#2f3647 100%); }
+
+  .device-scale { transform-origin: center center; }
+
+  /* ===== 手机：不同机型用不同圆角/机身色，提升辨识度 ===== */
+  .phone {
+    position: relative;
+    background: var(--body, #23252b);
+    border-radius: var(--r, 40px);
+    padding: 10px;
+    box-shadow: 0 30px 70px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06) inset, 0 0 0 3px var(--accent, #3a3d45);
+  }
+  /* 侧边实体按键 */
+  .phone .key { position: absolute; background: #3a3d45; border-radius: 3px; }
+  .phone .key.vol { left: -3px; top: 160px; width: 3px; height: 58px; }
+  .phone .key.pwr { right: -3px; top: 210px; width: 3px; height: 32px; }
+
+  .phone .screen {
+    position: relative; background: #fff;
+    border-radius: calc(var(--r, 40px) - 8px);
+    overflow: hidden;
+    width: 100%; height: 100%;
+    box-shadow: inset 0 0 2px rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.06);
+    transform: translateZ(0); /* 强制开启 layer，配合 overflow 裁剪 iframe */
+  }
+  .statusbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 44px; z-index: 5; pointer-events: none;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+    font-size: 14px; font-weight: 600; color: #111;
+  }
+  .statusbar .icons { letter-spacing: 1px; font-size: 12px; }
+  .iframe-wrap {
+    position: absolute; top: 44px; left: 0; right: 0; bottom: 0;
+    border-radius: 0 0 calc(var(--r, 40px) - 10px) calc(var(--r, 40px) - 10px);
+    overflow: hidden;
+  }
+  iframe { width: 100%; height: 100%; border: 0; background: #fff; display: block; }
+
+  /* 摄像头：灵动岛 / 单挖孔 / 华为三挖孔，全部带浅色描边+镜头高光 */
+  .cam { background: #000; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
+  .cam::after { content: ""; position: absolute; border-radius: 50%; }
+
+  .cam-island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 104px; height: 30px; background: #000; border-radius: 16px; z-index: 6; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
+  .cam-island::after { right: 12px; top: 50%; transform: translateY(-50%); width: 10px; height: 10px; background: radial-gradient(circle at 35% 30%, #34425a 0%, #05070b 70%); box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
+
+  .cam-punch { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); width: 13px; height: 13px; background: radial-gradient(circle at 35% 30%, #34425a 0%, #05070b 70%); border-radius: 50%; z-index: 6; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
+
+  .cam-triple { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 9px; z-index: 6; }
+  .cam-triple .pill { width: 66px; height: 22px; background: #000; border-radius: 13px; box-shadow: 0 0 0 1px rgba(255,255,255,.12); position: relative; }
+  .cam-triple .pill::after { content: ""; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 9px; height: 9px; background: radial-gradient(circle at 35% 30%, #34425a 0%, #05070b 70%); border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
+  .cam-triple .hole { width: 13px; height: 13px; background: radial-gradient(circle at 35% 30%, #34425a 0%, #05070b 70%); border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
+
+  /* 横屏：隐藏顶部元素，全屏给 iframe */
+  .phone.landscape .cam-island, .phone.landscape .cam-punch, .phone.landscape .cam-triple { display: none; }
+  .phone.landscape .statusbar { display: none; }
+  .phone.landscape .iframe-wrap { top: 0; border-radius: calc(var(--r, 40px) - 10px); }
+  .phone.landscape .homebar { display: none; }
+
+  .homebar { position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%); width: 120px; height: 5px; border-radius: 3px; background: rgba(0,0,0,.28); z-index: 7; pointer-events: none; }
+
+  /* ===== 电脑（浏览器窗口） ===== */
+  .computer { background: #0e1116; border-radius: 12px; padding: 10px; box-shadow: 0 26px 60px rgba(0,0,0,.45); display: flex; flex-direction: column; }
+  .comp-bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #1b2029; border-radius: 8px 8px 0 0; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot.r { background: #ff5f57; } .dot.y { background: #febc2e; } .dot.g { background: #28c840; }
+  .comp-url { flex: 1 1 auto; margin-left: 8px; background: #2a3140; color: #aeb8c9; border-radius: 6px; padding: 4px 10px; font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .comp-screen { background: #fff; overflow: hidden; border-radius: 0 0 6px 6px; flex: 1 1 auto; }
+  .comp-screen iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+  /* ===== 默认（跟随窗口）：无设备外壳，直接按浏览器可视区域渲染 ===== */
+  .default-frame { position: relative; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 26px 60px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.06) inset; }
+  .default-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+  .devlabel { position: absolute; bottom: -24px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 12px; color: #2b3445; font-weight: 600; }
+  .bg-ocean .devlabel, .bg-forest .devlabel, .bg-dusk .devlabel, .bg-mono .devlabel { color: #e8eefb; }
+  .scaletag { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: 11px; color: #9aa6ba; white-space: nowrap; }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <span class="label">设备</span>
+    <select id="device"></select>
+    <span class="sep"></span>
+    <span class="label">背景</span>
+    <select id="bg">
+      <option value="studio">工作室（浅灰）</option>
+      <option value="twilight">暮光粉橙</option>
+      <option value="ocean">深海蓝紫</option>
+      <option value="forest">森林绿</option>
+      <option value="dusk">暗夜（深灰）</option>
+      <option value="mono">高级灰</option>
+    </select>
+    <span class="sep"></span>
+    <span class="label">缩放</span>
+    <input type="range" id="zoom" min="0.4" max="1.2" step="0.05" value="1" />
+    <button id="fit">⤢ 适配</button>
+    <button id="rotate">⇄ 横竖</button>
+    <span class="sep"></span>
+    <span class="label">页面</span>
+    <input type="text" id="url" value="/" />
+    <button id="go">前往</button>
+    <button id="reload">↻ 刷新</button>
+    <span class="note">提示：预览展示系统在各设备视口下的真实渲染</span>
+  </div>
+
+  <div class="stage bg-studio" id="stage">
+    <div class="device-scale" id="scale"></div>
+  </div>
+
+<script>
+  // camera: island=灵动岛(苹果) / punch=单挖孔(三星/小米) / triple=华为三挖孔
+  const DEVICES = {
+    phones: [
+      { key:'ip16',   name:'iPhone 16 Pro',      w:402, h:874, camera:'island', accent:'#3a3a40', body:'#2c2d31', r:46 },
+      { key:'ip15pm', name:'iPhone 15 Pro Max',  w:430, h:932, camera:'island', accent:'#3a3a40', body:'#2c2d31', r:46 },
+      { key:'s24u',   name:'Galaxy S24 Ultra',   w:412, h:915, camera:'punch',  accent:'#14263a', body:'#1c1e24', r:22 },
+      { key:'mate60', name:'Huawei Mate 60 Pro', w:402, h:882, camera:'triple', accent:'#5b8c7e', body:'#22242a', r:40 },
+      { key:'pura70', name:'Huawei Pura 70 Pro', w:402, h:874, camera:'triple', accent:'#8a6ea8', body:'#23252b', r:42 },
+      { key:'mi15',   name:'Xiaomi 15 Pro',      w:412, h:919, camera:'punch',  accent:'#3a3f4b', body:'#25272d', r:38 },
+    ],
+    computers: [
+      { key:'nb1280', name:'笔记本 1280×800',  w:1280, h:800 },
+      { key:'nb1366', name:'笔记本 1366×768',  w:1366, h:768 },
+      { key:'nb1440', name:'笔记本 1440×900',  w:1440, h:900 },
+      { key:'dt1080', name:'台式 1920×1080',   w:1920, h:1080 },
+      { key:'dt2k',   name:'台式 2560×1440 2K', w:2560, h:1440 },
+      { key:'dt4k',   name:'台式 3840×2160 4K', w:3840, h:2160 },
+    ],
+  };
+  const ALL = [...DEVICES.phones, ...DEVICES.computers];
+  // 默认设备：跟随浏览器窗口自适应渲染（无设备外壳）
+  const DEFAULT_DEVICE = { key: 'default', name: '默认（跟随窗口）' };
+  let current = DEFAULT_DEVICE; // 默认选中「默认」项
+  let landscape = false;
+  let zoomMode = 'auto'; // 'auto' 或具体数值
+
+  const deviceSel = document.getElementById('device');
+  function buildDeviceSelect() {
+    // 顶部固定一个「默认」选项：跟随窗口尺寸，无设备外壳
+    const defOpt = document.createElement('option');
+    defOpt.value = 'default'; defOpt.textContent = '默认（跟随窗口）';
+    deviceSel.appendChild(defOpt);
+    const groups = [['手机', DEVICES.phones], ['电脑', DEVICES.computers]];
+    groups.forEach(([gname, list]) => {
+      const og = document.createElement('optgroup'); og.label = gname;
+      list.forEach(d => {
+        const opt = document.createElement('option'); opt.value = d.key; opt.textContent = d.name; og.appendChild(opt);
+      });
+      deviceSel.appendChild(og);
+    });
+    deviceSel.value = current.key;
+  }
+
+  function camHTML(type) {
+    if (type === 'island') return '<div class="cam-island"></div>';
+    if (type === 'punch')  return '<div class="cam-punch"></div>';
+    if (type === 'triple') return '<div class="cam-triple"><span class="hole"></span><span class="pill"></span><span class="hole"></span></div>';
+    return '';
+  }
+
+  function render() {
+    deviceSel.value = current.key;
+    const scaleBox = document.getElementById('scale');
+    const isComp = DEVICES.computers.includes(current);
+    let html = '';
+    // 默认设备：跟随窗口自适应，无外壳
+    if (current.key === 'default') {
+      const stage = document.getElementById('stage');
+      const sw = Math.max(stage.clientWidth - 80, 320);
+      const sh = Math.max(stage.clientHeight - 80, 240);
+      html = `<div class="default-frame" style="width:${sw}px;height:${sh}px">
+                <iframe id="frame" src="/"></iframe>
+                <div class="devlabel">${current.name} · ${sw}×${sh}</div>
+              </div>`;
+    } else if (isComp) {
+      const w = current.w, h = current.h;
+      html = `<div class="computer" style="width:${w}px;height:${h}px">
+                <div class="comp-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="comp-url" id="compUrl"></span></div>
+                <div class="comp-screen"><iframe id="frame" src="/"></iframe></div>
+                <div class="devlabel">${current.name} · ${w}×${h}</div>
+              </div>`;
+    } else {
+      const w = current.w, h = current.h;
+      const dw = (!landscape) ? w : h;
+      const dh = (!landscape) ? h : w;
+      const r = current.r || 40;
+      html = `<div class="phone${landscape?' landscape':''}" style="width:${dw}px;height:${dh}px;--r:${r}px;--body:${current.body};--accent:${current.accent}">
+                <span class="key vol"></span><span class="key pwr"></span>
+                ${camHTML(current.camera)}
+                <div class="statusbar"><span id="clock">9:41</span><span class="icons">●●● 5G ▮▮▮</span></div>
+                <div class="iframe-wrap"><iframe id="frame" src="/"></iframe></div>
+                <div class="homebar"></div>
+                <div class="devlabel">${current.name} · ${dw}×${dh}</div>
+                <div class="scaletag" id="scaletag"></div>
+              </div>`;
+    }
+    scaleBox.innerHTML = html;
+    applyUrl();
+    fitScale();
+  }
+
+  function applyUrl() {
+    const base = location.origin;
+    let u = document.getElementById('url').value.trim() || '/';
+    if (u.startsWith('/')) u = base + u;
+    else if (!/^https?:/.test(u)) u = base + '/' + u;
+    const f = document.getElementById('frame');
+    if (f) { f.src = u; const cu = document.getElementById('compUrl'); if (cu) cu.textContent = u; }
+  }
+
+  function fitScale() {
+    const stage = document.getElementById('stage');
+    // 默认设备已按窗口自适应，不缩放
+    if (current.key === 'default') {
+      document.getElementById('scale').style.transform = 'scale(1)';
+      const tag = document.getElementById('scaletag');
+      if (tag) tag.textContent = '跟随窗口';
+      return;
+    }
+    const isComp = DEVICES.computers.includes(current);
+    const w = current.w, h = current.h;
+    const dw = (isComp || !landscape) ? w : h;
+    const dh = (isComp || !landscape) ? h : w;
+    // 自动适配：留足上下边距，确保不贴/不遮菜单栏
+    const fit = Math.min((stage.clientWidth - 56) / dw, (stage.clientHeight - 56) / dh, 1);
+    let z;
+    if (zoomMode === 'auto') { z = fit; }
+    else { z = parseFloat(zoomMode); }
+    document.getElementById('scale').style.transform = 'scale(' + z + ')';
+    const tag = document.getElementById('scaletag');
+    if (tag) tag.textContent = '缩放 ' + Math.round(z * 100) + '%';
+  }
+
+  const $ = (id) => document.getElementById(id);
+  deviceSel.onchange = (e) => {
+    if (e.target.value === 'default') {
+      current = DEFAULT_DEVICE; landscape = false; zoomMode = 'auto'; document.getElementById('zoom').value = 1; render(); return;
+    }
+    const d = ALL.find(x => x.key === e.target.value);
+    if (d) { current = d; landscape = false; zoomMode = 'auto'; document.getElementById('zoom').value = 1; render(); }
+  };
+  const rot = $('rotate'); if (rot) rot.onclick = () => { if (!DEVICES.computers.includes(current) && current.key !== 'default') { landscape = !landscape; render(); } };
+  $('go').onclick = applyUrl;
+  $('reload').onclick = () => { const f = $('frame'); if (f) f.src = f.src; };
+  $('bg').onchange = (e) => { $('stage').className = 'stage bg-' + e.target.value; };
+  $('fit').onclick = () => { zoomMode = 'auto'; $('zoom').value = 1; fitScale(); };
+  $('zoom').oninput = (e) => { zoomMode = e.target.value; fitScale(); };
+  window.addEventListener('resize', () => { if (current.key === 'default') render(); else fitScale(); });
+
+  function tick() { const el = $('clock'); if (el) el.textContent = new Date().getHours() + ':' + String(new Date().getMinutes()).padStart(2,'0'); }
+  tick(); setInterval(tick, 30000);
+  buildDeviceSelect();
+  render();
+</script>
+</body>
+</html>

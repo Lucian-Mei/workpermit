@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EHS 电子化管理系统 · 操作手册（含流程示意图）</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#ffffff; --ink:#1e293b; --muted:#64748b; --line:#e2e8f0;
+    --applicant:#3b82f6; --approver:#22c55e; --safety:#f59e0b; --manager:#8b5cf6;
+    --sys:#64748b; --danger:#ef4444; --ok:#22c55e;
+    --shadow:0 1px 3px rgba(15,23,42,.08),0 8px 24px rgba(15,23,42,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.65;}
+  header{background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;padding:38px 28px;}
+  header h1{margin:0 0 6px;font-size:26px;letter-spacing:1px}
+  header p{margin:4px 0;opacity:.85;font-size:14px}
+  .wrap{max-width:1080px;margin:0 auto;padding:24px 20px 80px}
+  nav{position:sticky;top:0;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);
+      border-bottom:1px solid var(--line);padding:10px 20px;display:flex;gap:14px;
+      flex-wrap:wrap;font-size:13px;z-index:5}
+  nav a{color:var(--muted);text-decoration:none;padding:4px 10px;border-radius:999px}
+  nav a:hover{background:#eef2ff;color:#1e3a8a}
+  section{background:var(--card);border:1px solid var(--line);border-radius:16px;
+          padding:24px 26px;margin:20px 0;box-shadow:var(--shadow)}
+  h2{font-size:20px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  h2 .no{background:#1e3a8a;color:#fff;width:30px;height:30px;border-radius:9px;
+         display:inline-flex;align-items:center;justify-content:center;font-size:15px}
+  h3{font-size:15px;color:#334155;margin:22px 0 8px;border-left:4px solid #1e3a8a;padding-left:10px}
+  p.lead{color:var(--muted);font-size:14px;margin:2px 0 16px}
+  .role-table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px}
+  .role-table th,.role-table td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+  .role-table th{background:#f1f5f9;font-weight:600}
+  .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;color:#fff;font-weight:600;white-space:nowrap}
+  .b-applicant{background:var(--applicant)} .b-approver{background:var(--approver)}
+  .b-safety{background:var(--safety)} .b-manager{background:var(--manager)} .b-sys{background:var(--sys)}
+  .b-all{background:#0f172a}
+  .flow{background:#fbfcfe;border:1px solid var(--line);border-radius:12px;padding:14px;margin:14px 0;overflow-x:auto}
+  .flow svg{display:block;margin:0 auto;max-width:100%}
+  .steps{counter-reset:s;margin:10px 0;padding:0;list-style:none}
+  .steps li{position:relative;padding:12px 14px 12px 52px;border:1px solid var(--line);
+            border-radius:10px;margin:10px 0;background:#fff}
+  .steps li::before{counter-increment:s;content:counter(s);position:absolute;left:12px;top:12px;
+            width:26px;height:26px;border-radius:50%;background:#1e3a8a;color:#fff;
+            display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+  .steps li .who{font-weight:600}
+  .steps li .how{color:var(--muted);font-size:13.5px;margin-top:3px}
+  .note{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;
+        padding:10px 14px;font-size:13.5px;margin:12px 0}
+  .note b{color:#b45309}
+  .tip{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:10px;padding:10px 14px;font-size:13.5px;margin:12px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+  .kv{font-size:13.5px}
+  .kv div{display:flex;gap:10px;padding:5px 0;border-bottom:1px dashed var(--line)}
+  .kv div span:first-child{width:96px;color:var(--muted);flex:0 0 auto}
+  footer{text-align:center;color:var(--muted);font-size:12.5px;padding:30px}
+  code{background:#f1f5f9;padding:1px 6px;border-radius:5px;font-size:12.5px}
+</style>
+</head>
+<body>
+<header>
+  <h1>EHS 电子化管理系统 · 操作手册</h1>
+  <p>环境 / 健康 / 安全 一体化平台 &nbsp;|&nbsp; 含作业票、隐患治理、培训入厂、现场检查、看板与系统管理</p>
+  <p>本手册以"流程示意图 + 谁操作 + 怎么操作"形式说明各模块用法（版本对应 2026-08 系统）。</p>
+</header>
+
+<nav>
+  <a href="#login">① 登录与账号</a>
+  <a href="#roles">② 角色权限</a>
+  <a href="#permit">③ 作业票流程</a>
+  <a href="#hazard">④ 隐患治理</a>
+  <a href="#train">⑤ 培训入厂</a>
+  <a href="#onsite">⑥ 现场检查/签字</a>
+  <a href="#anon">⑦ 微信/匿名上报</a>
+  <a href="#admin">⑧ 管理与看板</a>
+</nav>
+
+<div class="wrap">
+
+<!-- ① 登录 -->
+<section id="login">
+  <h2><span class="no">1</span>登录与账号安全</h2>
+  <p class="lead">所有操作都从登录开始。系统支持"账号/邮箱/手机号"任一方式登录。</p>
+  <ul class="steps">
+    <li><span class="who">任何人（首次进入）</span>
+        <div class="how">浏览器打开系统地址 → 进入登录页。输入 <b>登录名 / 邮箱 / 手机号</b> + 密码，点击登录。</div></li>
+    <li><span class="who">登录失败限制（系统自动）</span>
+        <div class="how">10 分钟内同一账号+IP 错 8 次、或同 IP 错 30 次、或同账号错 20 次，将被临时锁定并返回 429，需等待窗口结束。防止密码爆破。</div></li>
+    <li><span class="who">登录后（令牌机制）</span>
+        <div class="how">系统签发 <b>30 分钟</b> 有效期的访问令牌（内存自动续期）；刷新令牌以 <b>HttpOnly Cookie</b> 存储，XSS 无法读取、也无法被长期窃取续用。</div></li>
+    <li><span class="who">首次/强制改密</span>
+        <div class="how">若账号被标记为"需改密"，登录后自动跳转改密页；修改成功后系统会吊销该账号在其它设备的登录并重发新会话（无需重新登录）。</div></li>
+    <li><span class="who">退出（本人）</span>
+        <div class="how">右上角退出 → 前端调用 <code>/auth/logout</code> 吊销当前刷新令牌并清除 Cookie，其它设备不受影响。</div></li>
+  </ul>
+  <div class="tip">账号被管理员停用时，已登录的会话会立即失效（再次访问即 401）。离职/丢机后管理员停用账号即可让所有设备即时下线。</div>
+</section>
+
+<!-- ② 角色 -->
+<section id="roles">
+  <h2><span class="no">2</span>角色与权限</h2>
+  <p class="lead">系统内置 4 类角色，权限由"模块:动作"组成。下表为各角色可做的事。</p>
+  <table class="role-table">
+    <thead><tr><th>角色</th><th>典型岗位</th><th>核心权限（能做什么）</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-applicant">普通员工</span></td><td>作业人员、承包商工人</td>
+          <td>上报隐患、提交本人作业票申请、参与现场交底/签字、查看数据看板与全员作业看板</td></tr>
+      <tr><td><span class="badge b-approver">审批人（部门负责人）</span></td><td>生产/设备/仓储等部门主管</td>
+          <td>审核本部门作业票、<b>批准危险作业票（会签第 3 步）</b>、部门隐患确认、提交/查看作业票</td></tr>
+      <tr><td><span class="badge b-safety">安全员</span></td><td>EHS 工程师、安全环保部</td>
+          <td>隐患派单/验收/归档、作业票审核与 <b>EHS 审批（会签第 2 步）</b>、现场检查、暂停/作废作业票、看板</td></tr>
+      <tr><td><span class="badge b-manager">系统管理员</span></td><td>系统运维/安全负责人</td>
+          <td>拥有全部权限；管理用户、角色、部门、区域、系统配置、数据备份</td></tr>
+    </tbody>
+  </table>
+  <div class="note">提示：角色与权限可在 <b>系统管理 → 角色</b> 中由管理员自定义调整（增删权限点）。</div>
+</section>
+
+<!-- ③ 作业票 -->
+<section id="permit">
+  <h2><span class="no">3</span>作业票办理流程（核心）</h2>
+  <p class="lead">作业票分"危险作业"（动火、高处、受限空间、吊装、挖掘、临时用电、盲板等）与"常规/非危险作业"。危险作业需 <b>三方会签</b>。</p>
+
+  <div class="flow">
+    <svg viewBox="0 0 860 760" width="860" height="760" font-family="PingFang SC,Microsoft YaHei,sans-serif">
+      <!-- 连接线 -->
+      <defs>
+        <marker id="ar" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" fill="#475569"/>
+        </marker>
+      </defs>
+      <line x1="430" y1="96" x2="430" y2="128" stroke="#475569" stroke-width="2" marker-end="url(#ar)"/>
+      <line x1="430" y1="208" x2="430" y2="240" stroke="#475569" stroke-width="2" marker-end="url(#ar)"/>
+      <line x1="430" y1="318" x2="430" y2="350" stroke="#475569" stroke-width="2" marker-end="url(#ar)"/>
+      <line x1="430" y1="428" x2="430" y2="460" stroke="#475569" stroke-width="2" marker-end="url(#ar)"/>
+      <line x1="430" y1="538" x2="430" y2="570" stroke="#475569" stroke-width="2" marker-end="url(#ar)"/>
+      <line x1="430" y1="648" x2="430" y2="680" stroke="#475569" stroke-width="2" marker-end="url(#ar)"/>
+      <!-- 分支标注 -->
+      <path d="M610,168 C700,200 700,260 618,290" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <text x="704" y="232" font-size="11" fill="#b45309">仅危险作业</text>
+      <path d="M610,278 C700,310 700,370 618,400" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <text x="704" y="342" font-size="11" fill="#6d28d9">仅危险作业</text>
+
+      <!-- 节点 -->
+      <!-- 1 提交 -->
+      <rect x="250" y="40" width="360" height="56" rx="12" fill="#eff6ff" stroke="#3b82f6" stroke-width="2"/>
+      <text x="430" y="64" text-anchor="middle" font-size="14" font-weight="700" fill="#1e3a8a">① 提交作业票申请</text>
+      <text x="430" y="84" text-anchor="middle" font-size="12" fill="#3b82f6">申请人 / 普通员工 · work_permit:create</text>
+
+      <!-- 2 部门审核 -->
+      <rect x="250" y="240" width="360" height="56" rx="12" fill="#ecfdf5" stroke="#22c55e" stroke-width="2"/>
+      <text x="430" y="264" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">② 部门主管审核</text>
+      <text x="430" y="284" text-anchor="middle" font-size="12" fill="#22c55e">审批人 / 部门负责人 · review</text>
+
+      <!-- 3 EHS -->
+      <rect x="250" y="350" width="360" height="56" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="2"/>
+      <text x="430" y="374" text-anchor="middle" font-size="14" font-weight="700" fill="#b45309">③ EHS 工程师审批</text>
+      <text x="430" y="394" text-anchor="middle" font-size="12" fill="#f59e0b">安全员 · approve_ehs（仅危险作业）</text>
+
+      <!-- 4 经理 -->
+      <rect x="250" y="460" width="360" height="56" rx="12" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="2"/>
+      <text x="430" y="484" text-anchor="middle" font-size="14" font-weight="700" fill="#6d28d9">④ 工程部经理批准</text>
+      <text x="430" y="504" text-anchor="middle" font-size="12" fill="#8b5cf6">审批人 · approve_mgr（仅危险作业）</text>
+
+      <!-- 5 批准打印 -->
+      <rect x="250" y="570" width="360" height="56" rx="12" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+      <text x="430" y="594" text-anchor="middle" font-size="14" font-weight="700" fill="#334155">⑤ 已批准 → 打印 / 下发作业票</text>
+      <text x="430" y="614" text-anchor="middle" font-size="12" fill="#64748b">print · 状态：执行中</text>
+
+      <!-- 6 现场签字 -->
+      <rect x="250" y="680" width="360" height="56" rx="12" fill="#eff6ff" stroke="#3b82f6" stroke-width="2"/>
+      <text x="430" y="704" text-anchor="middle" font-size="14" font-weight="700" fill="#1e3a8a">⑥ 现场交底与多方签字</text>
+      <text x="430" y="724" text-anchor="middle" font-size="12" fill="#3b82f6">申请人/监护人/监火人/作业人 · 可扫码免登录</text>
+
+      <!-- 驳回/暂停侧注 -->
+      <rect x="610" y="600" width="230" height="60" rx="10" fill="#fef2f2" stroke="#ef4444" stroke-width="1.5"/>
+      <text x="725" y="622" text-anchor="middle" font-size="12" font-weight="700" fill="#b91c1c">EHS 可执行</text>
+      <text x="725" y="642" text-anchor="middle" font-size="11.5" fill="#ef4444">暂停 / 作废（执行中）</text>
+    </svg>
+  </div>
+
+  <h3>分步操作说明</h3>
+  <ul class="steps">
+    <li><span class="who"><span class="badge b-applicant">申请人</span> 提交申请</span>
+        <div class="how">菜单 <b>作业票 → 申请</b>：选择作业类型（系统按 GB30871 自动判定是否危险作业）、填写作业内容、JSA 风险分析、安全措施、作业人/监护人、计划时段，可上传附件。提交后进入"待部门审核"。</div></li>
+    <li><span class="who"><span class="badge b-approver">部门负责人</span> 审核（②）</span>
+        <div class="how">菜单 <b>作业票 → 审核</b>：查看本部门待审票，核对措施后"通过/驳回"。非危险作业通过即进入"已批准"；危险作业通过进入"待 EHS 审批"。驳回则退回申请人。</div></li>
+    <li><span class="who"><span class="badge b-safety">安全员</span> EHS 审批（③，仅危险作业）</span>
+        <div class="how">菜单 <b>作业票 → EHS 审批</b>：审查安全措施与风险等级，通过后进入"待经理批准"。</div></li>
+    <li><span class="who"><span class="badge b-manager">部门经理</span> 批准（④，仅危险作业）</span>
+        <div class="how">菜单 <b>作业票 → 批准</b>：最终批准，状态变"已批准"。</div></li>
+    <li><span class="who"><span class="badge b-sys">任何人（批准人）</span> 打印 / 下发（⑤）</span>
+        <div class="how">在已批准票上点 <b>打印 / 导出</b>，生成作业票并下发现场，状态变"执行中"。</div></li>
+    <li><span class="who"><span class="badge b-applicant">现场多方</span> 交底与签字（⑥）</span>
+        <div class="how">现场通过 <b>扫码或现场检查页</b> 完成交底与多方签字（申请人/监护人/监火人/作业人）。危险作业必须签监护人，动火必须签监火人。</div></li>
+    <li><span class="who"><span class="badge b-sys">申请人/验收人</span> 完工归档</span>
+        <div class="how">作业完成 → "完工" → 验收人确认 → "归档"。执行中若需中止，<b>安全员</b>可"暂停/恢复"或"作废"。</div></li>
+  </ul>
+  <div class="note"><b>非危险作业</b>（如常规作业、断路作业）：仅走 ①→②→⑤，跳过 EHS 审批与经理批准两步。
+  <br><b>并发保护</b>：审批采用"状态比较-交换"，同一节点两人同时操作只有一人成功，另一人提示"状态已变更，请刷新后重试"，不会互相覆盖。</div>
+</section>
+
+<!-- ④ 隐患 -->
+<section id="hazard">
+  <h2><span class="no">4</span>隐患治理流程</h2>
+  <p class="lead">隐患从"上报"到"归档"形成闭环，责任人整改、部门确认、安全员验收。</p>
+
+  <div class="flow">
+    <svg viewBox="0 0 860 660" width="860" height="660" font-family="PingFang SC,Microsoft YaHei,sans-serif">
+      <line x1="430" y1="96" x2="430" y2="128" stroke="#475569" stroke-width="2" marker-end="url(#ar)"/>
+      <line x1="430" y1="208" x2="430" y2="240" stroke="#475569" stroke-width="2" marker-end="url(#ar)"/>
+      <line x1="430" y1="318" x2="430" y2="350" stroke="#475569" stroke-width="2" marker-end="url(#ar)"/>
+      <line x1="430" y1="428" x2="430" y2="460" stroke="#475569" stroke-width="2" marker-end="url(#ar)"/>
+      <line x1="430" y1="538" x2="430" y2="570" stroke="#475569" stroke-width="2" marker-end="url(#ar)"/>
+      <!-- 退回 -->
+      <path d="M610,318 C720,360 720,430 612,470" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <text x="700" y="400" font-size="11" fill="#b91c1c">验收不通过</text>
+
+      <rect x="250" y="40" width="360" height="56" rx="12" fill="#eff6ff" stroke="#3b82f6" stroke-width="2"/>
+      <text x="430" y="64" text-anchor="middle" font-size="14" font-weight="700" fill="#1e3a8a">① 上报隐患</text>
+      <text x="430" y="84" text-anchor="middle" font-size="12" fill="#3b82f6">任何人 / 微信免登录 · hazard:create</text>
+
+      <rect x="250" y="240" width="360" height="56" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="2"/>
+      <text x="430" y="264" text-anchor="middle" font-size="14" font-weight="700" fill="#b45309">② 派单（分配整改部门）</text>
+      <text x="430" y="284" text-anchor="middle" font-size="12" fill="#f59e0b">安全员 · assign</text>
+
+      <rect x="250" y="350" width="360" height="56" rx="12" fill="#ecfdf5" stroke="#22c55e" stroke-width="2"/>
+      <text x="430" y="374" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">③ 提交整改</text>
+      <text x="430" y="394" text-anchor="middle" font-size="12" fill="#22c55e">责任部门 / 责任人 · rectify</text>
+
+      <rect x="250" y="460" width="360" height="56" rx="12" fill="#ecfdf5" stroke="#22c55e" stroke-width="2"/>
+      <text x="430" y="484" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">④ 部门负责人确认</text>
+      <text x="430" y="504" text-anchor="middle" font-size="12" fill="#22c55e">部门负责人 · dept_review</text>
+
+      <rect x="250" y="570" width="360" height="56" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="2"/>
+      <text x="430" y="594" text-anchor="middle" font-size="14" font-weight="700" fill="#b45309">⑤ 验收并归档</text>
+      <text x="430" y="614" text-anchor="middle" font-size="12" fill="#f59e0b">安全员 · accept / archive</text>
+    </svg>
+  </div>
+
+  <ul class="steps">
+    <li><span class="who"><span class="badge b-applicant">任何人</span> 上报（①）</span>
+        <div class="how">菜单 <b>隐患 → 上报</b>，或微信扫码免登录上报：填写隐患描述、位置、照片、风险等级，提交后进入"待派单"。</div></li>
+    <li><span class="who"><span class="badge b-safety">安全员</span> 派单（②）</span>
+        <div class="how">菜单 <b>隐患 → 派单</b>：将隐患分配给责任部门/责任人，状态"整改中"。</div></li>
+    <li><span class="who"><span class="badge b-approver">责任部门</span> 整改（③）</span>
+        <div class="how">菜单 <b>隐患 → 我的</b>：责任人提交整改说明/佐证，状态"待部门确认"。</div></li>
+    <li><span class="who"><span class="badge b-approver">部门负责人</span> 确认（④）</span>
+        <div class="how">部门负责人审核整改结果，通过进入"待验收"，不通过退回整改。</div></li>
+    <li><span class="who"><span class="badge b-safety">安全员</span> 验收归档（⑤）</span>
+        <div class="how">现场/资料验收，通过即"已验收→归档"；验收不通过退回整改（见红色虚线）。安全员也可对简单隐患直接归档。</div></li>
+  </ul>
+</section>
+
+<!-- ⑤ 培训入厂 -->
+<section id="train">
+  <h2><span class="no">5</span>培训考试与入厂登记</h2>
+  <div class="grid2">
+    <div>
+      <h3>培训考试</h3>
+      <ul class="steps">
+        <li><span class="who"><span class="badge b-applicant">员工/工人</span> 参加培训考试</span>
+            <div class="how">开放页 <b>/training/exam</b>：填写姓名、手机号、<b>身份证号</b>、答卷；系统判定合格并生成合格记录（有效期默认 90 天）。</div></li>
+        <li><span class="who"><span class="badge b-safety">管理员</span> 维护题库/配置</span>
+            <div class="how">菜单 <b>培训</b>：维护考题、合格标准、有效期；记录可按身份证号精确查询（避免同名错认）。</div></li>
+      </ul>
+    </div>
+    <div>
+      <h3>入厂登记（承包商工人）</h3>
+      <ul class="steps">
+        <li><span class="who"><span class="badge b-applicant">工人</span> 自助登记</span>
+            <div class="how">开放页 <b>/public/entry-register</b>：填单位、姓名、手机号、<b>身份证号</b>、签名；系统校验其培训是否合格。</div></li>
+        <li><span class="who"><span class="badge b-safety">门岗/现场</span> 入厂核验</span>
+            <div class="how">扫码 <b>/public/entry/:token</b> 核验登记与培训状态，确认后放行。</div></li>
+      </ul>
+    </div>
+  </div>
+  <div class="tip">身份以<b>身份证号</b>为唯一键：培训合格与入厂登记都按身份证精确匹配，杜绝同名冒领/错认。</div>
+</section>
+
+<!-- ⑥ 现场检查 -->
+<section id="onsite">
+  <h2><span class="no">6</span>现场检查与免登录签字</h2>
+  <p class="lead">涉及多方签字/交底的环节，系统提供"免登录链接/二维码"，外部人员无需账号即可签字。</p>
+  <ul class="steps">
+    <li><span class="who"><span class="badge b-safety">安全员/审批人</span> 发起现场检查</span>
+        <div class="how">在作业票/隐患详情中点"现场检查/签字"，系统生成一次性免登录链接与二维码。</div></li>
+    <li><span class="who"><span class="badge b-all">作业人/监护人/监火人/承包商</span> 扫码签字</span>
+        <div class="how">用手机扫二维码打开 <b>/public/sign/:token</b>，按角色完成签字/确认；链接一次性、含安全校验，邮件安全网关预取不会误签。</div></li>
+    <li><span class="who"><span class="badge b-safety">发起人</span> 查看留痕</span>
+        <div class="how">签字结果实时回写到作业票/隐患，形成可审计的现场记录。</div></li>
+  </ul>
+  <div class="note">"全员作业看板"（<b>作业看板</b>菜单）对所有登录用户可见，实时展示各作业票状态与现场进度。</div>
+</section>
+
+<!-- ⑦ 微信上报 -->
+<section id="anon">
+  <h2><span class="no">7</span>微信 / 匿名上报</h2>
+  <ul class="steps">
+    <li><span class="who"><span class="badge b-all">全员（含外部人员）</span> 扫码上报</span>
+        <div class="how">通过企业微信/公众号二维码进入 <b>/anonymous</b> 免登录上报页，填写隐患/问题并提交，无需注册。</div></li>
+    <li><span class="who"><span class="badge b-safety">安全员</span> 接收并处理</span>
+        <div class="how">匿名上报进入隐患流程统一治理（同第 ④ 节）。</div></li>
+  </ul>
+</section>
+
+<!-- ⑧ 管理 -->
+<section id="admin">
+  <h2><span class="no">8</span>系统管理与看板（管理员）</h2>
+  <div class="kv">
+    <div><span>用户管理</span><span>菜单 <b>系统 → 用户</b>：新增/停用员工账号；停用后其所有会话立即失效。</span></div>
+    <div><span>角色权限</span><span>菜单 <b>系统 → 角色</b>：自定义角色与权限点组合。</span></div>
+    <div><span>部门/区域</span><span>菜单 <b>系统 → 部门/区域</b>：维护组织架构与作业区域。</span></div>
+    <div><span>系统配置</span><span>菜单 <b>系统 → 设置</b>：SMTP 邮件、AI 提示词、二维码、安全抽奖等。</span></div>
+    <div><span>数据备份</span><span>菜单 <b>系统 → 备份</b>：下载数据库备份 / 同步飞书多维表格（仅管理员）。</span></div>
+    <div><span>数据看板</span><span>菜单 <b>数据看板 / 年度统计</b>：作业票、隐患、培训等统计图表（需 view_all 权限）。</span></div>
+  </div>
+  <div class="tip">所有写操作均经后端校验与参数白名单；上传文件限 jpeg/png/gif/webp/pdf 且校验文件头，杜绝恶意文件。</div>
+</section>
+
+</div>
+<footer>
+  EHS 电子化管理系统 · 操作手册（示意图版） &nbsp;|&nbsp; 流程节点颜色：
+  <span class="badge b-applicant">申请人</span>
+  <span class="badge b-approver">部门/审批</span>
+  <span class="badge b-safety">安全员</span>
+  <span class="badge b-manager">经理/管理员</span>
+  <span class="badge b-sys">系统/公共</span>
+</footer>
+</body>
+</html>

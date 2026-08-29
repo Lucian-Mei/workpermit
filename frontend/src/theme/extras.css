@@ -1,0 +1,49 @@
+/* =========================================================
+   顶层（非 @layer）组件样式
+   故意放在 @layer 之外，确保被打包器原样输出：
+   Tailwind 对 @layer components 内的纯 CSS 规则（不含 @apply）
+   在特定版本下会静默丢弃，这里独立成文件避免该问题。
+   ========================================================= */
+
+/* 图标芯片：统一尺寸/圆角/底色，专业感来源 */
+.icon-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(var(--radius) - 2px);
+  flex: none;
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+/* 面板表头（.panel 容器 + .panel-head 头部条） */
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: var(--pad-card) calc(var(--pad-card) + 0.25rem);
+  border-bottom: 1px solid hsl(var(--border));
+}
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: hsl(var(--foreground));
+  letter-spacing: -0.01em;
+}
+.panel-sub {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  margin-top: 0.125rem;
+}
+
+/* 语义状态徽标（固定色，复用令牌） */
+.badge-ok     { background: hsl(var(--ok-bg));     color: hsl(var(--ok-fg)); }
+.badge-warn   { background: hsl(var(--warn-bg));   color: hsl(var(--warn-fg)); }
+.badge-danger { background: hsl(var(--danger-bg)); color: hsl(var(--danger-fg)); }
+.badge-info   { background: hsl(var(--info-bg));   color: hsl(var(--info-fg)); }
+.badge-mute   { background: hsl(var(--mute-bg));   color: hsl(var(--mute-fg)); }

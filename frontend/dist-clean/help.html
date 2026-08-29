@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-mode="light" data-accent="blue" data-surface="glass" data-radius="lg" data-font="sans" data-density="comfortable">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EHS 安全管理系统 · 帮助文档</title>
+<style>
+/* ============ 设计令牌（取自 EHS 前端 index.css） ============ */
+:root{
+  --background:220 33% 97%; --foreground:222 28% 13%;
+  --card:0 0% 100%; --card-foreground:222 28% 13%;
+  --popover:0 0% 100%; --popover-foreground:222 28% 13%;
+  --primary:221 83% 53%; --primary-foreground:0 0% 100%; --primary-soft:221 91% 95%;
+  --secondary:220 20% 95%; --secondary-foreground:222 28% 13%;
+  --muted:220 20% 94%; --muted-foreground:218 13% 42%;
+  --accent:221 91% 95%; --accent-foreground:221 83% 38%;
+  --destructive:0 72% 51%; --destructive-foreground:0 0% 100%;
+  --success:152 56% 36%; --success-foreground:0 0% 100%;
+  --warning:32 95% 44%; --warning-foreground:0 0% 100%;
+  --info:221 83% 53%; --info-foreground:0 0% 100%;
+  --border:218 21% 90%; --input:218 21% 87%; --ring:221 83% 53%;
+  --sidebar:222 31% 95%; --sidebar-foreground:218 13% 42%;
+  --sidebar-primary:221 83% 53%; --sidebar-primary-foreground:0 0% 100%;
+  --sidebar-accent:221 90% 95%; --sidebar-accent-foreground:222 28% 13%;
+  --sidebar-border:220 20% 88%; --sidebar-ring:221 83% 53%;
+  --chart-1:221 83% 55%; --chart-2:199 79% 46%; --chart-3:262 60% 58%; --chart-4:32 90% 52%; --chart-5:160 55% 42%;
+  --ok-bg:152 50% 92%; --ok-fg:152 60% 27%;
+  --warn-bg:38 92% 92%; --warn-fg:32 90% 33%;
+  --danger-bg:0 80% 95%; --danger-fg:0 72% 38%;
+  --info-bg:221 90% 95%; --info-fg:221 78% 33%;
+  --mute-bg:220 18% 94%; --mute-fg:220 14% 38%;
+  --card-bg:hsl(0 0% 100% / 0.62); --card-border:hsl(222 20% 20% / 0.09);
+  --card-shadow:0 8px 32px hsl(222 35% 32% / 0.30); --surface-blur:20px;
+  --radius:0.875rem;
+  --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  --pad-card:1.25rem; --gap-card:1.25rem; --row-h:3.25rem; --control-h:2.625rem; --page-pad:1.5rem;
+  --shadow-color:222 35% 32%; --hairline:hsl(var(--border) / 0.9);
+}
+[data-accent='green']{--primary:152 56% 38%;--primary-foreground:0 0% 100%;--primary-soft:152 45% 93%;--accent:152 45% 93%;--accent-foreground:152 60% 27%;--ring:152 56% 44%;--sidebar-primary:152 56% 40%;--info:152 56% 38%;--chart-1:152 58% 42%;}
+[data-accent='cyan']{--primary:199 85% 44%;--primary-foreground:0 0% 100%;--primary-soft:199 70% 93%;--accent:199 70% 93%;--accent-foreground:199 85% 30%;--ring:199 85% 48%;--sidebar-primary:199 85% 46%;--info:199 85% 44%;--chart-1:199 85% 46%;}
+[data-accent='violet']{--primary:262 70% 56%;--primary-foreground:0 0% 100%;--primary-soft:262 55% 94%;--accent:262 55% 94%;--accent-foreground:262 65% 36%;--ring:262 70% 58%;--sidebar-primary:262 70% 56%;--info:262 70% 56%;--chart-1:262 70% 58%;}
+[data-accent='amber']{--primary:32 92% 48%;--primary-foreground:0 0% 100%;--primary-soft:38 92% 93%;--accent:38 92% 93%;--accent-foreground:32 88% 30%;--ring:32 92% 48%;--sidebar-primary:32 92% 48%;--info:32 92% 48%;--chart-1:32 92% 50%;}
+[data-accent='indigo']{--primary:239 78% 58%;--primary-foreground:0 0% 100%;--primary-soft:239 65% 94%;--accent:239 65% 94%;--accent-foreground:239 75% 38%;--ring:239 78% 58%;--sidebar-primary:239 78% 58%;--info:239 78% 58%;--chart-1:239 78% 60%;}
+[data-mode='dark']{
+  --background:222 30% 9%; --foreground:220 20% 92%; --card:222 25% 13%; --card-foreground:220 20% 92%;
+  --popover:222 26% 15%; --popover-foreground:220 20% 92%;
+  --primary:221 83% 62%; --primary-foreground:222 35% 9%; --primary-soft:221 60% 20%; --accent:221 50% 19%; --accent-foreground:221 83% 78%;
+  --secondary:222 18% 19%; --secondary-foreground:220 20% 92%; --muted:222 16% 18%; --muted-foreground:218 12% 64%;
+  --destructive:0 72% 58%; --destructive-foreground:222 35% 9%; --success:152 55% 52%; --success-foreground:222 35% 9%;
+  --warning:38 92% 58%; --warning-foreground:222 35% 9%; --info:221 83% 62%; --info-foreground:222 35% 9%;
+  --border:222 16% 21%; --input:222 16% 24%; --ring:221 83% 62%;
+  --sidebar:222 32% 7%; --sidebar-foreground:218 12% 66%; --sidebar-primary:221 83% 64%; --sidebar-primary-foreground:222 35% 9%;
+  --sidebar-accent:222 22% 16%; --sidebar-accent-foreground:220 20% 92%; --sidebar-border:222 20% 15%; --sidebar-ring:221 83% 62%;
+  --chart-1:221 83% 64%; --chart-2:199 79% 58%; --chart-3:262 65% 70%; --chart-4:32 90% 62%; --chart-5:160 50% 55%;
+  --ok-bg:152 45% 17%; --ok-fg:152 70% 74%; --warn-bg:35 55% 17%; --warn-fg:38 95% 72%;
+  --danger-bg:0 55% 18%; --danger-fg:0 85% 76%; --info-bg:221 55% 19%; --info-fg:221 90% 80%; --mute-bg:222 18% 19%; --mute-fg:220 14% 66%;
+  --card-bg:hsl(var(--card) / 0.55); --card-border:hsl(var(--foreground) / 0.12); --card-shadow:0 14px 40px hsl(0 0% 0% / 0.45); --surface-blur:20px;
+  --shadow-color:222 45% 2%; --hairline:hsl(var(--border) / 0.85);
+}
+[data-radius='sm']{--radius:0.375rem;}[data-radius='md']{--radius:0.625rem;}[data-radius='lg']{--radius:0.875rem;}[data-radius='xl']{--radius:1.125rem;}
+[data-surface='flat']{--card-bg:hsl(var(--card));--card-border:hsl(var(--foreground) / 0.08);--card-shadow:0 1px 2px hsl(var(--shadow-color) / 0.05);--surface-blur:0px;}
+[data-surface='soft']{--card-bg:hsl(var(--card) / 0.85);--card-border:hsl(var(--foreground) / 0.08);--card-shadow:0 1px 3px hsl(var(--shadow-color) / 0.06),0 16px 40px -16px hsl(var(--shadow-color) / 0.22);--surface-blur:8px;}
+[data-surface='glass']{--card-bg:hsl(var(--card) / 0.6);--card-border:hsl(var(--foreground) / 0.11);--card-shadow:0 8px 32px hsl(var(--shadow-color) / 0.30);--surface-blur:20px;}
+
+/* ============ 基础 ============ */
+*{box-sizing:border-box;border-color:hsl(var(--border));}
+html{color-scheme:light;scroll-behavior:smooth;}
+[data-mode='dark']{color-scheme:dark;}
+body{
+  margin:0;font-family:var(--font-sans);color:hsl(var(--foreground));
+  background:hsl(var(--background));
+  background-image:radial-gradient(1100px circle at 88% -14%,hsl(var(--primary) / 0.07),transparent 48%),
+    radial-gradient(820px circle at -8% 110%,hsl(var(--primary) / 0.04),transparent 46%);
+  background-attachment:fixed;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  line-height:1.65;
+}
+::selection{background:hsl(var(--primary) / 0.22);}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:hsl(var(--border));border-radius:9999px;border:2px solid hsl(var(--background));}
+::-webkit-scrollbar-thumb:hover{background:hsl(var(--muted-foreground) / 0.5);}
+:focus-visible{outline:2px solid hsl(var(--ring));outline-offset:2px;border-radius:4px;}
+a{color:inherit;text-decoration:none;}
+
+/* ============ 玻璃组件（与 App 一致） ============ */
+.card{position:relative;background-color:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--radius);
+  box-shadow:var(--card-shadow);-webkit-backdrop-filter:blur(var(--surface-blur)) saturate(160%);backdrop-filter:blur(var(--surface-blur)) saturate(160%);
+  background-image:linear-gradient(135deg,hsl(var(--foreground) / 0.05) 0%,transparent 42%);
+  transition:box-shadow 240ms ease,transform 240ms ease,border-color 240ms ease,background 240ms ease;}
+[data-mode='dark'] .card{background-image:linear-gradient(135deg,hsl(var(--foreground) / 0.07) 0%,transparent 46%);}
+.card-hover{cursor:default;}
+.card-hover:hover{transform:translateY(-3px);box-shadow:0 4px 8px hsl(var(--shadow-color) / 0.06),0 22px 52px -18px hsl(var(--shadow-color) / 0.28);border-color:hsl(var(--foreground) / 0.14);}
+
+.metric-tile{position:relative;overflow:hidden;background-color:var(--card-bg);border:1px solid hsl(var(--foreground) / 0.09);border-radius:var(--radius);
+  -webkit-backdrop-filter:blur(var(--surface-blur)) saturate(160%);backdrop-filter:blur(var(--surface-blur)) saturate(160%);
+  box-shadow:0 1px 2px hsl(var(--shadow-color) / 0.05),0 14px 36px -16px hsl(var(--shadow-color) / 0.20);
+  background-image:linear-gradient(155deg,color-mix(in srgb,var(--metric-color,hsl(var(--primary))) 9%,transparent) 0%,color-mix(in srgb,var(--metric-color,hsl(var(--primary))) 3%,transparent) 46%,transparent 100%);
+  transition:transform 260ms cubic-bezier(.22,.61,.36,1),box-shadow 260ms ease,border-color 260ms ease,background 260ms ease;
+  padding:var(--pad-card);}
+.metric-tile:hover{transform:translateY(-4px);box-shadow:inset 0 1px 0 hsl(0 0% 100% / .7),0 4px 10px hsl(var(--shadow-color) / .06),0 24px 56px -18px hsl(var(--shadow-color) / .28);border-color:hsl(var(--primary) / .45);}
+.metric-tile-active{background-image:linear-gradient(155deg,color-mix(in srgb,var(--metric-color,hsl(var(--primary))) 17%,transparent) 0%,color-mix(in srgb,var(--metric-color,hsl(var(--primary))) 6%,transparent) 52%,transparent 100%);border-color:color-mix(in srgb,var(--metric-color,hsl(var(--primary))) 38%,hsl(var(--foreground) / 0.09));}
+.metric-icon{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:calc(var(--radius) * .6);
+  background:color-mix(in srgb,var(--metric-color,hsl(var(--primary))) 16%,transparent);color:var(--metric-color,hsl(var(--primary)));
+  box-shadow:inset 0 1px 0 hsl(0 0% 100% / .22),0 2px 6px hsl(0 0% 0% / .10);}
+.metric-halo{position:absolute;right:-16px;bottom:-16px;width:92px;height:92px;border-radius:50%;
+  background:radial-gradient(circle,var(--metric-color,hsl(var(--primary))) 0%,transparent 70%);opacity:.06;pointer-events:none;}
+.metric-tile:hover .metric-halo{opacity:.10;}
+[data-mode='dark'] .metric-tile{box-shadow:0 1px 2px hsl(var(--shadow-color) / .10),0 14px 36px -16px hsl(0 0% 0% / .35);}
+
+.icon-box{display:inline-flex;align-items:center;justify-content:center;border-radius:calc(var(--radius) - 2px);flex:none;
+  background:hsl(var(--primary) / 0.12);color:hsl(var(--primary));transition:background .15s ease,color .15s ease;}
+
+.badge{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .6rem;border-radius:9999px;font-size:.72rem;font-weight:650;line-height:1.2;white-space:nowrap;}
+.badge-ok{background:hsl(var(--ok-bg));color:hsl(var(--ok-fg));}
+.badge-warn{background:hsl(var(--warn-bg));color:hsl(var(--warn-fg));}
+.badge-danger{background:hsl(var(--danger-bg));color:hsl(var(--danger-fg));}
+.badge-info{background:hsl(var(--info-bg));color:hsl(var(--info-fg));}
+.badge-mute{background:hsl(var(--mute-bg));color:hsl(var(--mute-fg));}
+
+.dot{display:inline-block;height:.5rem;width:.5rem;border-radius:9999px;flex:none;}
+
+/* ============ 文档布局 ============ */
+.shell{display:grid;grid-template-columns:264px minmax(0,1fr);min-height:100vh;}
+.sidebar{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:.25rem;padding:1.1rem .8rem;
+  background:hsl(var(--sidebar) / .82);border-right:1px solid hsl(var(--sidebar-border));
+  -webkit-backdrop-filter:blur(16px) saturate(160%);backdrop-filter:blur(16px) saturate(160%);overflow-y:auto;}
+.brand{display:flex;align-items:center;gap:.65rem;padding:.4rem .5rem .9rem;}
+.brand-logo{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:hsl(var(--sidebar-primary-foreground));
+  background:linear-gradient(140deg,hsl(var(--primary)),color-mix(in srgb,hsl(var(--primary)) 60%,hsl(var(--chart-3))));box-shadow:0 6px 18px -6px hsl(var(--primary) / .6);}
+.brand-name{font-weight:750;font-size:.98rem;letter-spacing:-.01em;color:hsl(var(--foreground));}
+.brand-sub{font-size:.7rem;color:hsl(var(--sidebar-foreground));}
+.nav-group-label{font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:hsl(var(--sidebar-foreground));padding:.7rem .7rem .3rem;}
+.nav-link{display:flex;align-items:center;gap:.6rem;padding:.5rem .7rem;border-radius:calc(var(--radius) - 2px);font-size:.86rem;font-weight:550;color:hsl(var(--sidebar-foreground));transition:background .15s ease,color .15s ease;}
+.nav-link:hover{background:hsl(var(--sidebar-accent));color:hsl(var(--foreground));}
+.nav-link.active{background:hsl(var(--sidebar-accent));color:hsl(var(--sidebar-primary));font-weight:700;box-shadow:inset 2px 0 0 hsl(var(--sidebar-primary));}
+.nav-link svg{width:17px;height:17px;flex:none;}
+
+.main{min-width:0;display:flex;flex-direction:column;}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  padding:.75rem 2rem;background:hsl(var(--background) / .72);border-bottom:1px solid hsl(var(--border) / .8);
+  -webkit-backdrop-filter:blur(14px) saturate(160%);backdrop-filter:blur(14px) saturate(160%);}
+.topbar-title{font-weight:700;font-size:1rem;}
+.topbar-controls{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;}
+.seg{display:inline-flex;padding:3px;border-radius:9999px;background:hsl(var(--muted) / .8);border:1px solid hsl(var(--border));}
+.seg button{border:0;background:transparent;color:hsl(var(--muted-foreground));width:30px;height:28px;border-radius:9999px;display:grid;place-items:center;cursor:pointer;transition:all .15s ease;}
+.seg button.on{background:hsl(var(--card));color:hsl(var(--foreground));box-shadow:0 1px 3px hsl(var(--shadow-color) / .15);}
+.seg button:hover{color:hsl(var(--foreground));}
+.accent-dot{width:18px;height:18px;border-radius:9999px;cursor:pointer;border:2px solid transparent;transition:transform .12s ease;}
+.accent-dot:hover{transform:scale(1.15);}
+.accent-dot.on{border-color:hsl(var(--foreground) / .8);}
+
+.content{padding:2rem 2rem 4rem;max-width:980px;width:100%;}
+.page-fade{animation:pageFade 360ms cubic-bezier(.2,0,0,1) both;}
+@keyframes pageFade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+.hero{padding:2.2rem 2rem;border-radius:calc(var(--radius) + .25rem);margin-bottom:1.5rem;overflow:hidden;
+  background:linear-gradient(135deg,color-mix(in srgb,hsl(var(--primary)) 14%,var(--card-bg)),var(--card-bg));border:1px solid var(--card-border);
+  -webkit-backdrop-filter:blur(var(--surface-blur));backdrop-filter:blur(var(--surface-blur));box-shadow:var(--card-shadow);}
+.hero h1{margin:0 0 .5rem;font-size:1.8rem;font-weight:800;letter-spacing:-.02em;}
+.hero p{margin:0;color:hsl(var(--muted-foreground));max-width:60ch;}
+.hero-glow{position:absolute;right:-40px;top:-60px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,hsl(var(--primary) / .25),transparent 70%);pointer-events:none;}
+
+.doc-section{margin-top:2.6rem;scroll-margin-top:80px;}
+.doc-h{display:flex;align-items:center;gap:.6rem;font-size:1.3rem;font-weight:750;letter-spacing:-.01em;margin:0 0 .25rem;}
+.doc-h .icon-box{width:34px;height:34px;}
+.doc-sub{color:hsl(var(--muted-foreground));margin:0 0 1.1rem;font-size:.92rem;}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--gap-card);}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--gap-card);}
+.grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.9rem;}
+.stack{display:flex;flex-direction:column;gap:1rem;}
+.card-pad{padding:var(--pad-card);}
+.kv{display:flex;flex-direction:column;gap:.15rem;}
+.kv dt{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:hsl(var(--muted-foreground));}
+.kv dd{margin:0;font-size:.92rem;font-weight:600;color:hsl(var(--foreground));}
+.lead{font-size:.95rem;color:hsl(var(--foreground) / .92);margin:.2rem 0 0;}
+.muted{color:hsl(var(--muted-foreground));}
+
+.kbd{display:inline-block;padding:.1rem .45rem;border-radius:6px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.8rem;
+  background:hsl(var(--muted));border:1px solid hsl(var(--border));color:hsl(var(--foreground));}
+
+/* 状态流芯片 */
+.flow{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.4rem 0 0;}
+.flow-item{display:inline-flex;align-items:center;gap:.45rem;padding:.4rem .7rem;border-radius:var(--radius);font-size:.82rem;font-weight:650;
+  background:color-mix(in srgb,var(--fc,hsl(var(--primary))) 12%,var(--card-bg));color:var(--fc,hsl(var(--primary)));
+  border:1px solid color-mix(in srgb,var(--fc,hsl(var(--primary))) 26%,transparent);}
+.flow-arrow{color:hsl(var(--muted-foreground));}
+.flow-muted{opacity:.7;}
+
+/* 表格 */
+.tbl{width:100%;border-collapse:collapse;border-radius:var(--radius);overflow:hidden;border:1px solid hsl(var(--border));}
+.tbl th{text-align:left;padding:.6rem .9rem;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:hsl(var(--muted-foreground));background:hsl(var(--muted) / .6);border-bottom:1px solid hsl(var(--border));}
+.tbl td{padding:.6rem .9rem;border-bottom:1px solid hsl(var(--border) / .7);font-size:.86rem;vertical-align:top;}
+.tbl tr:last-child td{border-bottom:0;}
+.tbl tbody tr:hover{background:hsl(var(--primary) / .05);}
+
+/* 步骤向导 */
+.wizard{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;margin:.4rem 0 0;}
+.wstep{position:relative;padding:.85rem .8rem;border-radius:var(--radius);background:var(--card-bg);border:1px solid var(--card-border);
+  -webkit-backdrop-filter:blur(var(--surface-blur));backdrop-filter:blur(var(--surface-blur));}
+.wstep .num{width:24px;height:24px;border-radius:9999px;display:grid;place-items:center;font-size:.72rem;font-weight:800;color:hsl(var(--primary-foreground));background:hsl(var(--primary));margin-bottom:.5rem;}
+.wstep .wt{font-weight:700;font-size:.85rem;}
+.wstep .ws{font-size:.74rem;color:hsl(var(--muted-foreground));margin-top:.15rem;}
+
+.footer{margin-top:3rem;padding-top:1.4rem;border-top:1px solid hsl(var(--border));color:hsl(var(--muted-foreground));font-size:.8rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;}
+
+@media (max-width:880px){
+  .shell{grid-template-columns:1fr;}
+  .sidebar{position:static;height:auto;flex-direction:row;flex-wrap:wrap;overflow:visible;border-right:0;border-bottom:1px solid hsl(var(--sidebar-border));}
+  .brand{width:100%;}.nav-group-label{display:none;}.nav-link{flex:1 1 auto;}
+  .grid-2,.grid-3,.grid-4,.wizard{grid-template-columns:1fr 1fr;}
+  .content{padding:1.4rem 1.1rem 3rem;}
+  .topbar{padding:.7rem 1.1rem;}
+}
+@media (max-width:540px){.grid-2,.grid-3,.grid-4,.wizard{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<!-- 图标库 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></symbol>
+  <symbol id="i-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09Z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2Z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5 19 11"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="i-qr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v7M14 21h3M21 21v0"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 1 0 0 20c1.1 0 2-.9 2-2 0-.55-.22-1.05-.59-1.41-.36-.36-.58-.86-.58-1.41 0-1.1.9-2 2-2h2.34A4.5 4.5 0 0 0 22 12a10 10 0 0 0-10-10Z"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6.5 6.5 0 0 0-12.6-1.5A4 4 0 0 0 4.5 19Z"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-bot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4M8 16h.01M16 16h.01"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></symbol>
+  <symbol id="i-printer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6Z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0"/></symbol>
+</svg>
+
+<div class="shell">
+  <!-- 侧边栏 -->
+  <aside class="sidebar no-print">
+    <div class="brand">
+      <div class="brand-logo"><svg width="22" height="22"><use href="#i-shield"/></svg></div>
+      <div>
+        <div class="brand-name">EHS 安全管理</div>
+        <div class="brand-sub">帮助文档 · v1.0</div>
+      </div>
+    </div>
+    <div class="nav-group-label">开始</div>
+    <a class="nav-link active" href="#overview" data-target="overview"><svg><use href="#i-layers"/></svg>系统概览</a>
+    <a class="nav-link" href="#quickstart" data-target="quickstart"><svg><use href="#i-rocket"/></svg>快速开始</a>
+    <a class="nav-link" href="#arch" data-target="arch"><svg><use href="#i-server"/></svg>系统架构</a>
+    <div class="nav-group-label">核心业务</div>
+    <a class="nav-link" href="#roles" data-target="roles"><svg><use href="#i-users"/></svg>角色与权限</a>
+    <a class="nav-link" href="#hazards" data-target="hazards"><svg><use href="#i-alert"/></svg>隐患管理</a>
+    <a class="nav-link" href="#permits" data-target="permits"><svg><use href="#i-file"/></svg>作业票管理</a>
+    <a class="nav-link" href="#apply" data-target="apply"><svg><use href="#i-clip"/></svg>作业申请单</a>
+    <a class="nav-link" href="#org" data-target="org"><svg><use href="#i-building"/></svg>组织与区域</a>
+    <a class="nav-link" href="#wechat" data-target="wechat"><svg><use href="#i-qr"/></svg>微信扫码上报</a>
+    <div class="nav-group-label">系统</div>
+    <a class="nav-link" href="#theme" data-target="theme"><svg><use href="#i-palette"/></svg>皮肤与主题</a>
+    <a class="nav-link" href="#backup" data-target="backup"><svg><use href="#i-download"/></svg>备份与飞书</a>
+    <a class="nav-link" href="#deploy" data-target="deploy"><svg><use href="#i-rocket"/></svg>部署上线</a>
+    <a class="nav-link" href="#faq" data-target="faq"><svg><use href="#i-help"/></svg>常见问题</a>
+  </aside>
+
+  <!-- 主区 -->
+  <div class="main">
+    <div class="topbar no-print">
+      <div class="topbar-title">EHS 安全管理系统 · 帮助文档</div>
+      <div class="topbar-controls">
+        <div class="seg" id="modeSeg" title="明暗模式">
+          <button data-mode="light"><svg width="15" height="15"><use href="#i-sun"/></svg></button>
+          <button data-mode="dark"><svg width="15" height="15"><use href="#i-moon"/></svg></button>
+        </div>
+        <div class="seg" id="surfaceSeg" title="材质">
+          <button data-surface="flat">实</button>
+          <button data-surface="soft">柔</button>
+          <button data-surface="glass" class="on">玻</button>
+        </div>
+        <div style="display:flex;gap:.3rem" id="accentDots" title="强调色"></div>
+      </div>
+    </div>
+
+    <div class="content page-fade">
+      <!-- 概览 -->
+      <section id="overview" class="doc-section">
+        <div class="hero" style="position:relative">
+          <div class="hero-glow"></div>
+          <h1>EHS 安全管理系统</h1>
+          <p>一套<strong>完全自托管</strong>的环境 / 健康 / 安全（EHS）管理系统，覆盖隐患闭环治理、作业票全流程管控与组织权限管理，不依赖任何第三方表格服务。</p>
+        </div>
+        <div class="grid-4">
+          <div class="metric-tile" style="--metric-color:hsl(var(--primary))"><div class="metric-halo"></div>
+            <div class="metric-icon"><svg width="20" height="20"><use href="#i-alert"/></svg></div>
+            <div style="margin-top:.7rem;font-size:1.5rem;font-weight:800">7</div>
+            <div class="muted" style="font-size:.78rem">隐患状态节点</div></div>
+          <div class="metric-tile" style="--metric-color:hsl(var(--chart-3))"><div class="metric-halo"></div>
+            <div class="metric-icon"><svg width="20" height="20"><use href="#i-file"/></svg></div>
+            <div style="margin-top:.7rem;font-size:1.5rem;font-weight:800">10</div>
+            <div class="muted" style="font-size:.78rem">作业票状态节点</div></div>
+          <div class="metric-tile" style="--metric-color:hsl(var(--chart-5))"><div class="metric-halo"></div>
+            <div class="metric-icon"><svg width="20" height="20"><use href="#i-users"/></svg></div>
+            <div style="margin-top:.7rem;font-size:1.5rem;font-weight:800">RBAC</div>
+            <div class="muted" style="font-size:.78rem">22 权限点 · 4 角色</div></div>
+          <div class="metric-tile" style="--metric-color:hsl(var(--chart-2))"><div class="metric-halo"></div>
+            <div class="metric-icon"><svg width="20" height="20"><use href="#i-server"/></svg></div>
+            <div style="margin-top:.7rem;font-size:1.5rem;font-weight:800">2 核 4G</div>
+            <div class="muted" style="font-size:.78rem">单台轻量部署</div></div>
+        </div>
+        <div class="card card-pad card-hover" style="margin-top:1rem">
+          <p class="lead" style="margin-top:0">核心能力：隐患上报（含微信扫码免登录）→ AI 分析 → 派单 → 整改 → 验收；作业票申请 → AI 风险分析 → 特种作业证书 OCR → 审核 / 批准 → 打印两页 → 现场签字检查 → 归档；以及数据看板、组织权限、皮肤切换与一键备份。</p>
+        </div>
+      </section>
+
+      <!-- 快速开始 -->
+      <section id="quickstart" class="doc-section">
+        <h2 class="doc-h"><span class="icon-box" style="width:34px;height:34px"><svg width="18" height="18"><use href="#i-rocket"/></svg></span>快速开始</h2>
+        <p class="doc-sub">本地预览或服务器部署后，用管理员账号登录即可使用。</p>
+        <div class="grid-2">
+          <div class="card card-pad card-hover">
+            <dl class="kv"><dt>默认管理员账号</dt><dd>admin</dd></dl>
+            <dl class="kv" style="margin-top:.6rem"><dt>默认密码</dt><dd><span class="kbd">Admin@123456</span></dd></dl>
+            <dl class="kv" style="margin-top:.6rem"><dt>访问地址</dt><dd>本地 <span class="kbd">http://localhost:5173</span> · 服务器 <span class="kbd">http://&lt;服务器IP&gt;</span></dd></dl>
+            <p class="muted" style="font-size:.82rem;margin:.7rem 0 0"><span class="badge badge-warn">注意</span> 首次登录会<strong>强制修改密码</strong>。</p>
+          </div>
+          <div class="card card-pad card-hover">
+            <dl class="kv"><dt>员工账号规则</dt><dd>用户名 = 姓名拼音（如「张三」→ <span class="kbd">zhangsan</span>）</dd></dl>
+            <dl class="kv" style="margin-top:.6rem"><dt>密码下发</dt><dd>由系统生成随机密码下发给员工，首次登录强制改密</dd></dl>
+            <dl class="kv" style="margin-top:.6rem"><dt>权限控制</dt><dd>前端按权限隐藏菜单 + 后端按权限拦截，双重保险</dd></dl>
+          </div>
+        </div>
+      </section>
+
+      <!-- 架构 -->
+      <section id="arch" class="doc-section">
+        <h2 class="doc-h"><span class="icon-box" style="width:34px;height:34px"><svg width="18" height="18"><use href="#i-server"/></svg></span>系统架构</h2>
+        <p class="doc-sub">请求流向：用户 / 微信 → 前端（React）→ Nginx 反代 → 后端（NestJS + Drizzle）→ 数据库，外部按需接入 AI / OCR / 飞书。</p>
+        <div class="grid-3">
+          <div class="card card-pad card-hover"><div class="metric-icon" style="--metric-color:hsl(var(--chart-2))"><svg width="20" height="20"><use href="#i-users"/></svg></div><div style="margin-top:.7rem;font-weight:700">用户端</div><p class="muted" style="font-size:.82rem;margin:.3rem 0 0">管理员 / 安全员 / 审批人 / 员工；承包商微信扫码上报</p></div>
+          <div class="card card-pad card-hover"><div class="metric-icon" style="--metric-color:hsl(var(--primary))"><svg width="20" height="20"><use href="#i-monitor"/></svg></div><div style="margin-top:.7rem;font-weight:700">前端</div><p class="muted" style="font-size:.82rem;margin:.3rem 0 0">React 18 + Vite + Tailwind，运行时换肤 + 玻璃拟态</p></div>
+          <div class="card card-pad card-hover"><div class="metric-icon" style="--metric-color:hsl(var(--chart-3))"><svg width="20" height="20"><use href="#i-server"/></svg></div><div style="margin-top:.7rem;font-weight:700">接入层</div><p class="muted" style="font-size:.82rem;margin:.3rem 0 0">Nginx 反代，托管静态前端 + <span class="kbd">/api</span> → 后端</p></div>
+          <div class="card card-pad card-hover"><div class="metric-icon" style="--metric-color:hsl(var(--chart-5))"><svg width="20" height="20"><use href="#i-bot"/></svg></div><div style="margin-top:.7rem;font-weight:700">后端</div><p class="muted" style="font-size:.82rem;margin:.3rem 0 0">NestJS 10 模块化：认证 / 隐患 / 作业票 / AI / OCR / 看板</p></div>
+          <div class="card card-pad card-hover"><div class="metric-icon" style="--metric-color:hsl(var(--primary))"><svg width="20" height="20"><use href="#i-database" /></svg></div><div style="margin-top:.7rem;font-weight:700">数据层</div><p class="muted" style="font-size:.82rem;margin:.3rem 0 0">PostgreSQL 16（生产）/ PGlite 0.5.4（本地），<span class="kbd">DB_DRIVER</span> 切换</p></div>
+          <div class="card card-pad card-hover"><div class="metric-icon" style="--metric-color:hsl(var(--chart-4))"><svg width="20" height="20"><use href="#i-spark"/></svg></div><div style="margin-top:.7rem;font-weight:700">外部集成</div><p class="muted" style="font-size:.82rem;margin:.3rem 0 0">微信扫码 · AI 厂商 · OCR 厂商 · 飞书多维表格（可选备份）</p></div>
+        </div>
+        <p class="muted" style="font-size:.82rem;margin-top:1rem">完整可视化架构图见仓库根目录 <span class="kbd">ehs-architecture.html</span>（浏览器直接打开）。</p>
+      </section>
+
+      <!-- 角色权限 -->
+      <section id="roles" class="doc-section">
+        <h2 class="doc-h"><span class="icon-box" style="width:34px;height:34px"><svg width="18" height="18"><use href="#i-users"/></svg></span>角色与权限</h2>
+        <p class="doc-sub">系统内置 4 个角色，可在「角色与权限」中增改；权限点形如 <span class="kbd">hazard:create</span>，共 22 个。</p>
+        <div class="card" style="overflow:hidden">
+          <table class="tbl">
+            <thead><tr><th>角色</th><th>权限要点</th></tr></thead>
+            <tbody>
+              <tr><td><span class="badge badge-danger">系统管理员</span> admin</td><td>全部权限，含系统设置与备份</td></tr>
+              <tr><td><span class="badge badge-warn">安全员</span> safety</td><td>隐患派单 / 验收、作业票审核、现场检查</td></tr>
+              <tr><td><span class="badge badge-info">审批人</span> approver</td><td>批准作业票（含特种作业）</td></tr>
+              <tr><td><span class="badge badge-mute">普通员工</span> employee</td><td>上报隐患、提交自己的作业票申请</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 隐患 -->
+      <section id="hazards" class="doc-section">
+        <h2 class="doc-h"><span class="icon-box" style="width:34px;height:34px"><svg width="18" height="18"><use href="#i-alert"/></svg></span>隐患管理</h2>
+        <p class="doc-sub">覆盖「上报 → 派单 → 整改 → 验收」闭环，共 7 个状态节点，可随机停留在任意环节。</p>
+        <div class="card card-pad card-hover">
+          <div class="flow">
+            <span class="flow-item" style="--fc:hsl(var(--warning))"><span class="dot" style="background:hsl(var(--warning))"></span>待分配</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item" style="--fc:hsl(var(--chart-2))"><span class="dot" style="background:hsl(var(--chart-2))"></span>已派单</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item" style="--fc:hsl(var(--info))"><span class="dot" style="background:hsl(var(--info))"></span>已整改</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item" style="--fc:hsl(var(--chart-3))"><span class="dot" style="background:hsl(var(--chart-3))"></span>部门确认</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item" style="--fc:hsl(var(--success))"><span class="dot" style="background:hsl(var(--success))"></span>已验收</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item flow-muted" style="--fc:hsl(var(--destructive))"><span class="dot" style="background:hsl(var(--destructive))"></span>已驳回 / 已取消</span>
+          </div>
+          <p class="muted" style="font-size:.82rem;margin:1rem 0 0">支持 AI 智能分析隐患等级与整改建议；微信扫码上报的隐患在「只看我的上报」中可查看历史。</p>
+        </div>
+      </section>
+
+      <!-- 作业票 -->
+      <section id="permits" class="doc-section">
+        <h2 class="doc-h"><span class="icon-box" style="width:34px;height:34px"><svg width="18" height="18"><use href="#i-file"/></svg></span>作业票管理</h2>
+        <p class="doc-sub">申请 → AI 风险分析 → 特种作业证书 OCR → 审核 → 批准 → 打印两页 → 现场签字检查 → 归档，共 10 个状态节点。</p>
+        <div class="card card-pad card-hover">
+          <div class="flow">
+            <span class="flow-item" style="--fc:hsl(var(--muted-foreground))"><span class="dot" style="background:hsl(var(--muted-foreground))"></span>草稿</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item" style="--fc:hsl(var(--warning))"><span class="dot" style="background:hsl(var(--warning))"></span>待审核</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item" style="--fc:hsl(var(--chart-2))"><span class="dot" style="background:hsl(var(--chart-2))"></span>审核中</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item" style="--fc:hsl(var(--success))"><span class="dot" style="background:hsl(var(--success))"></span>已批准</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item" style="--fc:hsl(var(--info))"><span class="dot" style="background:hsl(var(--info))"></span>已打印</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item" style="--fc:hsl(var(--chart-3))"><span class="dot" style="background:hsl(var(--chart-3))"></span>已完成</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-item" style="--fc:hsl(var(--chart-5))"><span class="dot" style="background:hsl(var(--chart-5))"></span>已归档</span>
+            <span class="flow-item flow-muted" style="--fc:hsl(var(--warning))"><span class="dot" style="background:hsl(var(--warning))"></span>已暂停</span>
+            <span class="flow-item flow-muted" style="--fc:hsl(var(--destructive))"><span class="dot" style="background:hsl(var(--destructive))"></span>已驳回 / 已作废</span>
+          </div>
+          <div class="grid-2" style="margin-top:1.1rem">
+            <div class="card card-pad" style="background:color-mix(in srgb,hsl(var(--warning)) 8%,var(--card-bg));border-color:color-mix(in srgb,hsl(var(--warning)) 22%,transparent)">
+              <div style="font-weight:700;display:flex;align-items:center;gap:.4rem"><svg width="16" height="16" style="color:hsl(var(--warning))"><use href="#i-scan"/></svg> 特种作业</div>
+              <p class="muted" style="font-size:.82rem;margin:.4rem 0 0">必须上传作业证，系统 OCR 识别（阿里云）；识别不了转人工确认。需审批人额外批准 + 现场检查。</p>
+            </div>
+            <div class="card card-pad" style="background:color-mix(in srgb,hsl(var(--success)) 8%,var(--card-bg));border-color:color-mix(in srgb,hsl(var(--success)) 22%,transparent)">
+              <div style="font-weight:700;display:flex;align-items:center;gap:.4rem"><svg width="16" height="16" style="color:hsl(var(--success))"><use href="#i-printer"/></svg> 打印模板（两页）</div>
+              <p class="muted" style="font-size:.82rem;margin:.4rem 0 0">第一页作业票正文；第二页证书附件（照片 + OCR 信息，无需人员填字）。打印后现场张贴签字。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 作业申请单 -->
+      <section id="apply" class="doc-section">
+        <h2 class="doc-h"><span class="icon-box" style="width:34px;height:34px"><svg width="18" height="18"><use href="#i-clip"/></svg></span>作业申请单</h2>
+        <p class="doc-sub">「普通作业（FOR001）+ 承包商培训（FOR002）+ 危险作业票」统一入口，页面以<strong>引导式快速填写</strong>为主。</p>
+        <div class="card card-pad card-hover">
+          <div style="font-weight:700;margin-bottom:.6rem">四步向导</div>
+          <div class="wizard">
+            <div class="wstep"><div class="num">1</div><div class="wt">FOR001 作业信息</div><div class="ws">作业内容、区域、时间、人员</div></div>
+            <div class="wstep"><div class="num">2</div><div class="wt">FOR002 培训签字</div><div class="ws">承包商培训与受训人签字</div></div>
+            <div class="wstep"><div class="num">3</div><div class="wt">危险作业票</div><div class="ws">按需添加对应作业票</div></div>
+            <div class="wstep"><div class="num">4</div><div class="wt">提交送审</div><div class="ws">进入审核 / 批准流程</div></div>
+          </div>
+          <div style="margin-top:1rem;font-weight:700;margin-bottom:.5rem">快捷模板（一键带入默认项）</div>
+          <div class="flow">
+            <span class="flow-item" style="--fc:hsl(var(--success))"><svg width="15" height="15"><use href="#i-check"/></svg>普通作业 · 无需危险作业票</span>
+            <span class="flow-item" style="--fc:hsl(var(--destructive))"><svg width="15" height="15"><use href="#i-alert"/></svg>含危险作业 · 自动预置勾选</span>
+            <span class="flow-item" style="--fc:hsl(var(--chart-3))"><svg width="15" height="15"><use href="#i-users"/></svg>承包商作业 · 重点完成 FOR002 签字</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 组织与区域 -->
+      <section id="org" class="doc-section">
+        <h2 class="doc-h"><span class="icon-box" style="width:34px;height:34px"><svg width="18" height="18"><use href="#i-building"/></svg></span>组织与区域</h2>
+        <p class="doc-sub">部门、员工账号、作业区域均在系统内集中维护，是隐患与作业票的下拉数据源。</p>
+        <div class="grid-3">
+          <div class="card card-pad card-hover"><div class="metric-icon" style="--metric-color:hsl(var(--chart-2))"><svg width="20" height="20"><use href="#i-building"/></svg></div><div style="margin-top:.6rem;font-weight:700">部门</div><p class="muted" style="font-size:.82rem;margin:.3rem 0 0">维护负责人 / 协调人 / 联系电话，可设部门管理员</p></div>
+          <div class="card card-pad card-hover"><div class="metric-icon" style="--metric-color:hsl(var(--primary))"><svg width="20" height="20"><use href="#i-users"/></svg></div><div style="margin-top:.6rem;font-weight:700">员工账号</div><p class="muted" style="font-size:.82rem;margin:.3rem 0 0">拼音账号 + 系统下发密码，归属部门 / 区域，可禁用</p></div>
+          <div class="card card-pad card-hover"><div class="metric-icon" style="--metric-color:hsl(var(--chart-5))"><svg width="20" height="20"><use href="#i-map"/></svg></div><div style="margin-top:.6rem;font-weight:700">作业区域</div><p class="muted" style="font-size:.82rem;margin:.3rem 0 0">楼栋 / 楼层 / 责任部门，作为上报与作业票的地点下拉</p></div>
+        </div>
+      </section>
+
+      <!-- 微信 -->
+      <section id="wechat" class="doc-section">
+        <h2 class="doc-h"><span class="icon-box" style="width:34px;height:34px"><svg width="18" height="18"><use href="#i-qr"/></svg></span>微信扫码免登录上报</h2>
+        <p class="doc-sub">「隐患随手拍」页面 <span class="kbd">/anonymous</span> 为公开地址，无需登录即可上报。</p>
+        <div class="card card-pad card-hover">
+          <div class="grid-2">
+            <div><div style="font-weight:700">现场扫码上报</div><p class="muted" style="font-size:.84rem;margin:.3rem 0 0">扫码后填写姓名即可上报，可拍照上传；登录后在「只看我的上报」查看历史。</p></div>
+            <div><div style="font-weight:700">安全防刷</div><p class="muted" style="font-size:.84rem;margin:.3rem 0 0">接口带 IP 限流（1 小时最多 20 条 / 40 次上传）。打印 <span class="kbd">http://&lt;服务器IP&gt;/anonymous</span> 张贴现场。</p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 皮肤 -->
+      <section id="theme" class="doc-section">
+        <h2 class="doc-h"><span class="icon-box" style="width:34px;height:34px"><svg width="18" height="18"><use href="#i-palette"/></svg></span>皮肤与主题</h2>
+        <p class="doc-sub">系统支持<strong>运行时皮肤切换</strong>，无需刷新即可即时生效，偏好本地保存。</p>
+        <div class="grid-2">
+          <div class="card card-pad card-hover"><dl class="kv"><dt>明暗模式</dt><dd>明亮 / 暗色</dd></dl><p class="muted" style="font-size:.82rem;margin:.5rem 0 0">暗色模式采用精炼石板灰，无霓虹，长时间盯屏更舒适。</p></div>
+          <div class="card card-pad card-hover"><dl class="kv"><dt>强调色</dt><dd>蓝 / 绿 / 青 / 紫 / 琥珀 / 靛</dd></dl><p class="muted" style="font-size:.82rem;margin:.5rem 0 0">主色、图表首色、链接等随之变化，所有对比度调校至 WCAG AA。</p></div>
+          <div class="card card-pad card-hover"><dl class="kv"><dt>材质 / 圆角</dt><dd>实色 / 柔和 / 玻璃拟态 · 4 档圆角</dd></dl><p class="muted" style="font-size:.82rem;margin:.5rem 0 0">玻璃拟态带柔光反射与背景虚化，立体而不喧哗。</p></div>
+          <div class="card card-pad card-hover"><dl class="kv"><dt>字体 / 密度</dt><dd>无衬线 / 圆体 / 等宽 · 紧凑 / 适中 / 宽松</dd></dl><p class="muted" style="font-size:.82rem;margin:.5rem 0 0">适配不同屏幕与阅读习惯，密度切换改变卡片内边距与行高。</p></div>
+        </div>
+        <p class="muted" style="font-size:.82rem;margin-top:1rem">本帮助文档顶栏即内置同样的主题切换，可实时预览不同皮肤效果。</p>
+      </section>
+
+      <!-- 备份 -->
+      <section id="backup" class="doc-section">
+        <h2 class="doc-h"><span class="icon-box" style="width:34px;height:34px"><svg width="18" height="18"><use href="#i-download"/></svg></span>备份与飞书</h2>
+        <p class="doc-sub">数据完全自托管，备份一键完成；飞书仅作为可选同步目标。</p>
+        <div class="grid-2">
+          <div class="card card-pad card-hover"><div class="metric-icon" style="--metric-color:hsl(var(--success))"><svg width="20" height="20"><use href="#i-download"/></svg></div><div style="margin-top:.6rem;font-weight:700">下载备份</div><p class="muted" style="font-size:.82rem;margin:.3rem 0 0">系统设置 → 数据备份 → 立即备份并下载。优先 <span class="kbd">pg_dump</span> SQL，无则退化为 JSON。</p></div>
+          <div class="card card-pad card-hover"><div class="metric-icon" style="--metric-color:hsl(var(--chart-3))"><svg width="20" height="20"><use href="#i-cloud"/></svg></div><div style="margin-top:.6rem;font-weight:700">飞书同步（可选）</div><p class="muted" style="font-size:.82rem;margin:.3rem 0 0">填好 <span class="kbd">FEISHU_*</span> 四项后，点「同步到飞书」推送统计到多维表格；留空则只提供下载。</p></div>
+        </div>
+      </section>
+
+      <!-- 部署 -->
+      <section id="deploy" class="doc-section">
+        <h2 class="doc-h"><span class="icon-box" style="width:34px;height:34px"><svg width="18" height="18"><use href="#i-rocket"/></svg></span>部署上线</h2>
+        <p class="doc-sub">Docker Compose 一键部署，单台 2 核 4G 轻量服务器即可承载。</p>
+        <div class="card card-pad card-hover">
+          <pre style="margin:0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.82rem;background:hsl(var(--muted) / .5);padding:.9rem;border-radius:var(--radius);overflow:auto;color:hsl(var(--foreground))">cp .env.example .env   # 改 JWT_SECRET / DB_PASSWORD / AI_API_KEY / ALIYUN_OCR_*
+chmod +x deploy.sh
+./deploy.sh              # nginx + 前端 + 后端 + PostgreSQL</pre>
+          <div class="grid-2" style="margin-top:1rem">
+            <div><div style="font-weight:700">访问</div><p class="muted" style="font-size:.82rem;margin:.3rem 0 0"><span class="kbd">http://&lt;服务器IP&gt;</span>（nginx 80）· API <span class="kbd">/api</span></p></div>
+            <div><div style="font-weight:700">数据持久化</div><p class="muted" style="font-size:.82rem;margin:.3rem 0 0">数据库在 <span class="kbd">ehs_pg_data</span> 卷、上传在 <span class="kbd">ehs_uploads</span> 卷，升级镜像不丢数据。</p></div>
+          </div>
+          <p class="muted" style="font-size:.82rem;margin:.8rem 0 0"><span class="badge badge-info">HTTPS</span> 将证书放到 <span class="kbd">nginx/certs/</span> 并打开 <span class="kbd">nginx.conf</span> 末尾 443 server 块即可（可选）。</p>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section id="faq" class="doc-section">
+        <h2 class="doc-h"><span class="icon-box" style="width:34px;height:34px"><svg width="18" height="18"><use href="#i-help"/></svg></span>常见问题</h2>
+        <div class="stack">
+          <div class="card card-pad card-hover"><div style="font-weight:700">Q：表结构怎么更新？</div><p class="muted" style="font-size:.84rem;margin:.35rem 0 0">改 <span class="kbd">schema.ts</span> 后，开发期跑 <span class="kbd">npx drizzle-kit push</span>，生产用 <span class="kbd">drizzle-kit migrate</span>。</p></div>
+          <div class="card card-pad card-hover"><div style="font-weight:700">Q：AI / OCR 没配能用吗？</div><p class="muted" style="font-size:.84rem;margin:.35rem 0 0">能。相关按钮提示「AI 暂不可用」，不影响核心流转；审核人员可人工完成分析。</p></div>
+          <div class="card card-pad card-hover"><div style="font-weight:700">Q：想加新作业类型？</div><p class="muted" style="font-size:.84rem;margin:.35rem 0 0">在后端 <span class="kbd">WORK_PERMIT_TYPES</span> 加一项（标是否特种作业 / 需证书），前端 <span class="kbd">constants.ts</span> 同步一条。</p></div>
+          <div class="card card-pad card-hover"><div style="font-weight:700">Q：想加新角色 / 权限？</div><p class="muted" style="font-size:.84rem;margin:.35rem 0 0">「角色与权限」页面新建角色并勾选权限点；新权限点需在 <span class="kbd">PERMISSIONS</span> 登记。</p></div>
+        </div>
+      </section>
+
+      <div class="footer">
+        <span>EHS 安全管理系统 · 帮助文档</span>
+        <span>运行时皮肤切换 · 玻璃拟态 · 自托管部署</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  // 主题：明暗
+  var modeSeg=document.getElementById('modeSeg');
+  function setMode(m){root.setAttribute('data-mode',m);syncSeg(modeSeg,'mode',m);}
+  modeSeg.querySelectorAll('button').forEach(function(b){b.addEventListener('click',function(){setMode(b.getAttribute('data-mode'));});});
+  // 主题：材质
+  var surfSeg=document.getElementById('surfaceSeg');
+  surfSeg.querySelectorAll('button').forEach(function(b){b.addEventListener('click',function(){root.setAttribute('data-surface',b.getAttribute('data-surface'));syncSeg(surfSeg,'surface',b.getAttribute('data-surface'));});});
+  function syncSeg(seg,attr,val){seg.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-'+attr)===val);});}
+  // 主题：强调色
+  var accents=[['blue','221 83% 53%'],['green','152 56% 38%'],['cyan','199 85% 44%'],['violet','262 70% 56%'],['amber','32 92% 48%'],['indigo','239 78% 58%']];
+  var dots=document.getElementById('accentDots');
+  accents.forEach(function(a){
+    var d=document.createElement('div');d.className='accent-dot';d.title=a[0];
+    d.style.background='hsl('+a[1]+')';d.setAttribute('data-accent',a[0]);
+    d.addEventListener('click',function(){root.setAttribute('data-accent',a[0]);syncDots(a[0]);});
+    dots.appendChild(d);
+  });
+  function syncDots(val){dots.querySelectorAll('.accent-dot').forEach(function(d){d.classList.toggle('on',d.getAttribute('data-accent')===val);});}
+  // 初始化选中态
+  setMode(root.getAttribute('data-mode')||'light');
+  syncSeg(surfSeg,'surface',root.getAttribute('data-surface')||'glass');
+  syncDots(root.getAttribute('data-accent')||'blue');
+
+  // 侧边栏滚动高亮（scroll-spy）
+  var links=Array.prototype.slice.call(document.querySelectorAll('.nav-link'));
+  var sections=links.map(function(l){return document.getElementById(l.getAttribute('data-target'));});
+  function onScroll(){
+    var pos=window.scrollY+120,idx=0;
+    sections.forEach(function(s,i){if(s&&s.offsetTop<=pos)idx=i;});
+    links.forEach(function(l,i){l.classList.toggle('active',i===idx);});
+  }
+  window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+})();
+</script>
+</body>
+</html>

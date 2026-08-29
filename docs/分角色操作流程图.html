@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EHS 系统 · 分角色操作流程图与合理性分析</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#fff; --ink:#1e293b; --muted:#64748b; --line:#e2e8f0;
+    --applicant:#3b82f6; --approver:#22c55e; --safety:#f59e0b; --manager:#8b5cf6;
+    --admin:#0f172a; --external:#0ea5e9; --sys:#64748b;
+    --shadow:0 1px 3px rgba(15,23,42,.08),0 8px 24px rgba(15,23,42,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.65}
+  header{background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;padding:34px 28px}
+  header h1{margin:0 0 6px;font-size:25px;letter-spacing:1px}
+  header p{margin:4px 0;opacity:.85;font-size:14px}
+  .wrap{max-width:1100px;margin:0 auto;padding:22px 18px 80px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:20px 0;box-shadow:var(--shadow)}
+  h2{font-size:19px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  h2 .no{width:30px;height:30px;border-radius:9px;background:#1e3a8a;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:15px}
+  .who{font-size:13px;color:var(--muted);margin:2px 0 14px}
+  .who b{color:#334155}
+  .flow{background:#fbfcfe;border:1px solid var(--line);border-radius:12px;padding:12px;margin:12px 0;overflow-x:auto}
+  .flow svg{display:block;margin:0 auto;max-width:100%}
+  .analysis{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  @media(max-width:760px){.analysis{grid-template-columns:1fr}}
+  .ok,.warn,.keep{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:10px;padding:10px 13px;font-size:13.5px}
+  .warn{background:#fffbeb;border-color:#fde68a;color:#92400e}
+  .keep{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
+  .ok b,.warn b,.keep b{display:block;margin-bottom:3px;font-weight:700}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12.5px;margin:6px 0 0}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .decision{background:#fff;border:1px solid var(--line);border-left:4px solid #1e3a8a;border-radius:10px;padding:12px 14px;margin:12px 0;font-size:14px}
+  .decision b{color:#1e3a8a}
+  table.ov{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+  table.ov th,table.ov td{border:1px solid var(--line);padding:8px 10px;vertical-align:top;text-align:left}
+  table.ov th{background:#f1f5f9}
+  footer{text-align:center;color:var(--muted);font-size:12.5px;padding:28px}
+</style>
+</head>
+<body>
+<header>
+  <h1>EHS 系统 · 分角色操作流程图与合理性分析</h1>
+  <p>按角色说明：在哪一个场景的哪一步、使用系统的哪个功能，并分析该操作是否合理</p>
+  <p>已落地的设计决策：危险作业强制三方会签 · 审批必须登录（需看待审记录）· 入厂登记强卡培训合格 · 审批/验收无批量（须真实查看）</p>
+</header>
+
+<div class="wrap">
+
+<!-- 总览 -->
+<section>
+  <h2><span class="no">★</span>角色 × 场景总览</h2>
+  <p class="who">谁在什么时候、用哪个菜单做什么（路径一览，详细见下方各角色流程图）。</p>
+  <table class="ov">
+    <thead><tr><th>角色</th><th>典型场景</th><th>所用功能（菜单 / 页面）</th><th>是否登录</th></tr></thead>
+    <tbody>
+      <tr><td><b>普通员工 / 作业人员</b></td><td>办作业票、报隐患、现场签字、考试</td><td>作业票→申请、隐患→上报、现场检查扫码、培训考试页</td><td>是（本人账号）</td></tr>
+      <tr><td><b>部门负责人 / 审批人</b></td><td>部门审核、经理批准、隐患确认</td><td>作业票→审核 / 批准、隐患→我的·部门确认</td><td>是（须看待审记录）</td></tr>
+      <tr><td><b>安全员（EHS）</b></td><td>隐患派单/验收、EHS审批、现场管控、看板</td><td>隐患→派单/验收、作业票→EHS审批/现场检查/暂停作废、作业看板</td><td>是</td></tr>
+      <tr><td><b>系统管理员</b></td><td>账号/角色/部门/配置/备份</td><td>系统→用户/角色/部门/设置/备份、数据看板</td><td>是（高权限）</td></tr>
+      <tr><td><b>承包商工人 / 外部人员</b></td><td>培训签到入场、现场签字、免登录上报</td><td>申请人下发的二维码 → /public/worker-register、/public/sign、微信 /anonymous</td><td>否（免登录，仅填记录）</td></tr>
+    </tbody>
+  </table>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--applicant)"></i>普通员工</span>
+    <span><i class="dot" style="background:var(--approver)"></i>部门/审批</span>
+    <span><i class="dot" style="background:var(--safety)"></i>安全员</span>
+    <span><i class="dot" style="background:var(--manager)"></i>经理/管理员</span>
+    <span><i class="dot" style="background:var(--external)"></i>外部/免登录</span>
+  </div>
+</section>
+
+<!-- 角色1 -->
+<section>
+  <h2><span class="no">1</span>普通员工 / 作业人员</h2>
+  <p class="who">权限：上报隐患、提交本人作业票、现场签字、看板。<b>自己不审批</b>——符合"审批必须登录看记录"的分工。</p>
+  <div class="flow">
+    <svg viewBox="0 0 820 470" width="820" height="470" font-family="PingFang SC,Microsoft YaHei,sans-serif">
+      <defs><marker id="a" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#475569"/></marker></defs>
+      <line x1="410" y1="92" x2="410" y2="120" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+      <line x1="410" y1="200" x2="410" y2="228" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+      <line x1="410" y1="308" x2="410" y2="336" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+      <!-- A 办票 -->
+      <rect x="230" y="36" width="360" height="56" rx="12" fill="#eff6ff" stroke="#3b82f6" stroke-width="2"/>
+      <text x="410" y="60" text-anchor="middle" font-size="14" font-weight="700" fill="#1e3a8a">① 选作业类型（常规/危险）</text>
+      <text x="410" y="80" text-anchor="middle" font-size="11.5" fill="#3b82f6">功能：作业票→申请（首页入口）</text>
+      <rect x="230" y="120" width="360" height="56" rx="12" fill="#eff6ff" stroke="#3b82f6" stroke-width="2"/>
+      <text x="410" y="144" text-anchor="middle" font-size="14" font-weight="700" fill="#1e3a8a">② 填表单并提交</text>
+      <text x="410" y="164" text-anchor="middle" font-size="11.5" fill="#3b82f6">楼栋/区域/作业人/监护人/JSA/措施（常用信息已下拉记忆✅）</text>
+      <rect x="230" y="228" width="360" height="56" rx="12" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+      <text x="410" y="252" text-anchor="middle" font-size="14" font-weight="700" fill="#334155">③ 进入审批流（本人无需再操作）</text>
+      <text x="410" y="272" text-anchor="middle" font-size="11.5" fill="#64748b">等待部门/EHS/经理 三级审批</text>
+      <rect x="230" y="336" width="360" height="56" rx="12" fill="#eff6ff" stroke="#3b82f6" stroke-width="2"/>
+      <text x="410" y="360" text-anchor="middle" font-size="14" font-weight="700" fill="#1e3a8a">④ 现场扫码 / 检查页 多方签字</text>
+      <text x="410" y="380" text-anchor="middle" font-size="11.5" fill="#3b82f6">功能：现场检查（onsite_check，可免登录扫码）</text>
+      <!-- B 隐患/培训 侧栏 -->
+      <rect x="620" y="120" width="180" height="80" rx="10" fill="#ecfdf5" stroke="#22c55e" stroke-width="1.5"/>
+      <text x="710" y="146" text-anchor="middle" font-size="12.5" font-weight="700" fill="#166534">并行场景</text>
+      <text x="710" y="168" text-anchor="middle" font-size="11" fill="#22c55e">隐患→上报（或微信扫码）</text>
+      <text x="710" y="186" text-anchor="middle" font-size="11" fill="#22c55e">培训考试页 /training/exam</text>
+    </svg>
+  </div>
+  <div class="analysis">
+    <div class="ok"><b>合理 ✅</b>申请/上报/考试均为自主操作，路径清晰；签字可扫码免登录，符合"作业人员可无系统权限、仅填记录"的设定。本次新增"常用作业人/监护人下拉记忆"，直接减少重复输入，提升操作性。</div>
+    <div class="keep"><b>设计一致 ✅</b>本角色不审批——审批集中在部门/EHS/经理，且审批必须登录，分工清晰、责任可追溯，不与"免登录签字"混淆。</div>
+  </div>
+  <div class="analysis">
+    <div class="warn"><b>可优化（你已确认暂不改）</b>申请表单字段仍偏多。建议后续"复制最近票/我的模板"一键回填（已列入方案，非本次改动），可进一步压缩填写时间。</div>
+    <div class="ok"><b>合理 ✅</b>提交后进入审批流即"放手"，无需本人在多个节点跟催，符合一线"填完就干活"的习惯。</div>
+  </div>
+</section>
+
+<!-- 角色2 -->
+<section>
+  <h2><span class="no">2</span>部门负责人 / 审批人</h2>
+  <p class="who">权限：审核本部门作业票、<b>批准危险作业票（会签第 3 步）</b>、部门隐患确认。<b>审批必须登录</b>——只有登录才能看到"待我审批"的记录与全量信息。</p>
+  <div class="flow">
+    <svg viewBox="0 0 820 560" width="820" height="560" font-family="PingFang SC,Microsoft YaHei,sans-serif">
+      <defs><marker id="b" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#475569"/></marker></defs>
+      <line x1="410" y1="92" x2="410" y2="120" stroke="#475569" stroke-width="2" marker-end="url(#b)"/>
+      <line x1="410" y1="200" x2="410" y2="228" stroke="#475569" stroke-width="2" marker-end="url(#b)"/>
+      <line x1="410" y1="430" x2="410" y2="458" stroke="#475569" stroke-width="2" marker-end="url(#b)"/>
+      <rect x="230" y="36" width="360" height="56" rx="12" fill="#ecfdf5" stroke="#22c55e" stroke-width="2"/>
+      <text x="410" y="60" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">① 查收待审（本部门）</text>
+      <text x="410" y="80" text-anchor="middle" font-size="11.5" fill="#22c55e">功能：作业票→审核</text>
+      <rect x="230" y="120" width="360" height="56" rx="12" fill="#ecfdf5" stroke="#22c55e" stroke-width="2"/>
+      <text x="410" y="144" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">② 查看票详情（JSA/措施/签字要求）</text>
+      <text x="410" y="164" text-anchor="middle" font-size="11.5" fill="#22c55e">真实查看后方可决策（无批量✅）</text>
+      <rect x="230" y="228" width="360" height="56" rx="12" fill="#ecfdf5" stroke="#22c55e" stroke-width="2"/>
+      <text x="410" y="252" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">③ 通过 / 驳回（写意见）</text>
+      <text x="410" y="272" text-anchor="middle" font-size="11.5" fill="#22c55e">非危险作业：通过即批准</text>
+      <!-- 危险作业第3步 -->
+      <rect x="230" y="336" width="360" height="56" rx="12" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="2"/>
+      <text x="410" y="360" text-anchor="middle" font-size="14" font-weight="700" fill="#6d28d9">④（危险作业）经理批准：查收待批</text>
+      <text x="410" y="380" text-anchor="middle" font-size="11.5" fill="#8b5cf6">功能：作业票→批准（会签第 3 步）</text>
+      <rect x="230" y="458" width="360" height="56" rx="12" fill="#ecfdf5" stroke="#22c55e" stroke-width="2"/>
+      <text x="410" y="482" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">⑤ 部门隐患确认（整改后）</text>
+      <text x="410" y="502" text-anchor="middle" font-size="11.5" fill="#22c55e">功能：隐患→我的 / 部门确认</text>
+    </svg>
+  </div>
+  <div class="analysis">
+    <div class="keep"><b>符合你的要求 ✅</b>审批必须登录（须看到待审记录与全量信息）；审批/验收无批量，每张须真实查看，防走过场；危险作业三方会签不妥协，责任层层落实。</div>
+    <div class="ok"><b>合理 ✅</b>审核与批准分离、部门与经理分工，审批链可视化（详情页展示每一级角色/状态/意见），便于追溯。</div>
+  </div>
+  <div class="analysis">
+    <div class="warn"><b>体验提示（不影响流程）</b>若同一人同时是"部门审核人"与"经理批准人"，需分两次登录操作。三方会签不可妥协，但可在 UI 提示"你也是下一节点审批人"以减少等待感——属体验优化，未改动流程。</div>
+    <div class="ok"><b>合理 ✅</b>审批人被锁定为"登录用户"，与作业人员的免登录签字形成清晰边界，安全且合规。</div>
+  </div>
+</section>
+
+<!-- 角色3 -->
+<section>
+  <h2><span class="no">3</span>安全员（EHS）</h2>
+  <p class="who">权限：隐患派单/验收/归档、<b>危险作业 EHS 审批（会签第 2 步）</b>、现场检查、暂停/作废、作业看板。</p>
+  <div class="flow">
+    <svg viewBox="0 0 820 620" width="820" height="620" font-family="PingFang SC,Microsoft YaHei,sans-serif">
+      <defs><marker id="c" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#475569"/></marker></defs>
+      <line x1="410" y1="92" x2="410" y2="120" stroke="#475569" stroke-width="2" marker-end="url(#c)"/>
+      <line x1="410" y1="200" x2="410" y2="228" stroke="#475569" stroke-width="2" marker-end="url(#c)"/>
+      <line x1="410" y1="308" x2="410" y2="336" stroke="#475569" stroke-width="2" marker-end="url(#c)"/>
+      <line x1="410" y1="416" x2="410" y2="444" stroke="#475569" stroke-width="2" marker-end="url(#c)"/>
+      <line x1="410" y1="524" x2="410" y2="552" stroke="#475569" stroke-width="2" marker-end="url(#c)"/>
+      <rect x="230" y="36" width="360" height="56" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="2"/>
+      <text x="410" y="60" text-anchor="middle" font-size="14" font-weight="700" fill="#b45309">① 隐患派单（分配整改部门）</text>
+      <text x="410" y="80" text-anchor="middle" font-size="11.5" fill="#f59e0b">功能：隐患→派单（hazard:assign）</text>
+      <rect x="230" y="120" width="360" height="56" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="2"/>
+      <text x="410" y="144" text-anchor="middle" font-size="14" font-weight="700" fill="#b45309">② 危险作业 EHS 审批（第 2 步）</text>
+      <text x="410" y="164" text-anchor="middle" font-size="11.5" fill="#f59e0b">功能：作业票→EHS审批（须登录查看）</text>
+      <rect x="230" y="228" width="360" height="56" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="2"/>
+      <text x="410" y="252" text-anchor="middle" font-size="14" font-weight="700" fill="#b45309">③ 现场检查 + 生成多方签字二维码</text>
+      <text x="410" y="272" text-anchor="middle" font-size="11.5" fill="#f59e0b">功能：作业票→现场检查（onsite_check）</text>
+      <rect x="230" y="336" width="360" height="56" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="2"/>
+      <text x="410" y="360" text-anchor="middle" font-size="14" font-weight="700" fill="#b45309">④ 隐患验收 / 归档</text>
+      <text x="410" y="380" text-anchor="middle" font-size="11.5" fill="#f59e0b">功能：隐患→验收（或越级直接归档）</text>
+      <rect x="230" y="444" width="360" height="56" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="2"/>
+      <text x="410" y="468" text-anchor="middle" font-size="14" font-weight="700" fill="#b45309">⑤ 执行中票：暂停 / 恢复 / 作废</text>
+      <text x="410" y="488" text-anchor="middle" font-size="11.5" fill="#f59e0b">功能：作业票详情（仅 EHS）</text>
+      <rect x="230" y="552" width="360" height="56" rx="12" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+      <text x="410" y="576" text-anchor="middle" font-size="14" font-weight="700" fill="#334155">⑥ 作业看板：实时全局视角</text>
+      <text x="410" y="596" text-anchor="middle" font-size="11.5" fill="#64748b">功能：作业看板（全员可见）</text>
+    </svg>
+  </div>
+  <div class="analysis">
+    <div class="keep"><b>符合你的要求 ✅</b>隐患"必须安全员派单"——你确认暂不自动派单，保持人工派单可控；自接整改方案已列入待办但未加自动派单。审批登录、无批量、三方会签均保留。</div>
+    <div class="ok"><b>合理 ✅</b>安全员同时是"隐患治理枢纽"与"危险作业会签第 2 步 + 现场管控"，权责集中但均有记录留痕，适合 EHS 角色定位。</div>
+  </div>
+  <div class="analysis">
+    <div class="warn"><b>可优化</b>安全员事务较集中（派单+审批+验收+现场）。建议"我的待办"汇总页（已有作业看板，可增强为按角色聚合待办），减少在多个菜单间切换。属体验优化，不改流程。</div>
+    <div class="ok"><b>合理 ✅</b>暂停/作废仅 EHS 可用，避免一线随意中止作业，管控得当。</div>
+  </div>
+</section>
+
+<!-- 角色4 -->
+<section>
+  <h2><span class="no">4</span>系统管理员</h2>
+  <p class="who">权限：用户、角色、部门、区域、系统配置、数据备份、统计看板。<b>强权限集中，低频后台操作</b>。</p>
+  <div class="flow">
+    <svg viewBox="0 0 820 470" width="820" height="470" font-family="PingFang SC,Microsoft YaHei,sans-serif">
+      <defs><marker id="d" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#475569"/></marker></defs>
+      <line x1="410" y1="92" x2="410" y2="120" stroke="#475569" stroke-width="2" marker-end="url(#d)"/>
+      <line x1="410" y1="200" x2="410" y2="228" stroke="#475569" stroke-width="2" marker-end="url(#d)"/>
+      <line x1="410" y1="308" x2="410" y2="336" stroke="#475569" stroke-width="2" marker-end="url(#d)"/>
+      <rect x="230" y="36" width="360" height="56" rx="12" fill="#0f172a" stroke="#0f172a" stroke-width="2"/>
+      <text x="410" y="60" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">① 用户 / 角色 / 部门 / 区域 维护</text>
+      <text x="410" y="80" text-anchor="middle" font-size="11.5" fill="#cbd5e1">系统→用户 / 角色 / 部门</text>
+      <rect x="230" y="120" width="360" height="56" rx="12" fill="#0f172a" stroke="#0f172a" stroke-width="2"/>
+      <text x="410" y="144" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">② 系统设置（SMTP/二维码/配置）</text>
+      <text x="410" y="164" text-anchor="middle" font-size="11.5" fill="#cbd5e1">系统→设置</text>
+      <rect x="230" y="228" width="360" height="56" rx="12" fill="#0f172a" stroke="#0f172a" stroke-width="2"/>
+      <text x="410" y="252" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">③ 数据备份 / 飞书同步</text>
+      <text x="410" y="272" text-anchor="middle" font-size="11.5" fill="#cbd5e1">系统→备份（仅管理员）</text>
+      <rect x="230" y="336" width="360" height="56" rx="12" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+      <text x="410" y="360" text-anchor="middle" font-size="14" font-weight="700" fill="#334155">④ 数据看板 / 年度统计</text>
+      <text x="410" y="380" text-anchor="middle" font-size="11.5" fill="#64748b">数据看板 / 年度统计</text>
+    </svg>
+  </div>
+  <div class="analysis">
+    <div class="ok"><b>合理 ✅</b>强权限集中、最小授权；停用账号即时让所有设备下线（安全）。管理动作低频且后台，不干扰一线效率。</div>
+    <div class="ok"><b>合理 ✅</b>备份与统计独立成菜单，职责清晰，符合"管理员管治理、一线管业务"的边界。</div>
+  </div>
+</section>
+
+<!-- 角色5 -->
+<section>
+  <h2><span class="no">5</span>承包商工人 / 外部人员（无系统账号）</h2>
+  <p class="who">无登录账号，<b>全程免登录</b>，仅扫码填记录/签字。二维码由申请人/安全员生成下发。</p>
+  <div class="flow">
+    <svg viewBox="0 0 820 560" width="820" height="560" font-family="PingFang SC,Microsoft YaHei,sans-serif">
+      <defs><marker id="e" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#475569"/></marker></defs>
+      <line x1="410" y1="92" x2="410" y2="120" stroke="#475569" stroke-width="2" marker-end="url(#e)"/>
+      <line x1="410" y1="200" x2="410" y2="228" stroke="#475569" stroke-width="2" marker-end="url(#e)"/>
+      <line x1="410" y1="308" x2="410" y2="336" stroke="#475569" stroke-width="2" marker-end="url(#e)"/>
+      <line x1="410" y1="416" x2="410" y2="444" stroke="#475569" stroke-width="2" marker-end="url(#e)"/>
+      <rect x="230" y="36" width="360" height="56" rx="12" fill="#e0f2fe" stroke="#0ea5e9" stroke-width="2"/>
+      <text x="410" y="60" text-anchor="middle" font-size="14" font-weight="700" fill="#0369a1">① 收到"培训签到二维码"图片</text>
+      <text x="410" y="80" text-anchor="middle" font-size="11.5" fill="#0ea5e9">申请人审批后下载并转发（功能已确认存在✅）</text>
+      <rect x="230" y="120" width="360" height="56" rx="12" fill="#e0f2fe" stroke="#0ea5e9" stroke-width="2"/>
+      <text x="410" y="144" text-anchor="middle" font-size="14" font-weight="700" fill="#0369a1">② 扫码 → 填身份证+姓名 → 培训校验</text>
+      <text x="410" y="164" text-anchor="middle" font-size="11.5" fill="#0ea5e9">页面：/public/worker-register</text>
+      <rect x="230" y="228" width="360" height="56" rx="12" fill="#e0f2fe" stroke="#0ea5e9" stroke-width="2"/>
+      <text x="410" y="252" text-anchor="middle" font-size="14" font-weight="700" fill="#0369a1">③ 登记入场（培训未过/过期被拦截）</text>
+      <text x="410" y="272" text-anchor="middle" font-size="11.5" fill="#0ea5e9">强卡培训合格（你确认不妥协✅）</text>
+      <rect x="230" y="336" width="360" height="56" rx="12" fill="#e0f2fe" stroke="#0ea5e9" stroke-width="2"/>
+      <text x="410" y="360" text-anchor="middle" font-size="14" font-weight="700" fill="#0369a1">④ 现场：扫签字二维码手写签名</text>
+      <text x="410" y="380" text-anchor="middle" font-size="11.5" fill="#0ea5e9">页面：/public/sign（免登录，一次性）</text>
+      <rect x="230" y="444" width="360" height="56" rx="12" fill="#e0f2fe" stroke="#0ea5e9" stroke-width="2"/>
+      <text x="410" y="468" text-anchor="middle" font-size="14" font-weight="700" fill="#0369a1">⑤（可选）微信扫码免登录上报隐患</text>
+      <text x="410" y="488" text-anchor="middle" font-size="11.5" fill="#0ea5e9">页面：/anonymous</text>
+    </svg>
+  </div>
+  <div class="analysis">
+    <div class="ok"><b>合理 ✅</b>全程免登录、仅填记录/签字，符合"外部人员可无系统权限"；二维码由内部人员生成下发，外部人无需注册，闭环顺畅。</div>
+    <div class="keep"><b>符合你的要求 ✅</b>入厂登记强卡培训合格（不妥协）：未培训或过期在登记时被拦截，保障入场安全，不发生"先干后补"的合规风险。</div>
+  </div>
+  <div class="analysis">
+    <div class="ok"><b>合理 ✅</b>"审批后二维码下载"功能真实存在（作业票详情页→复制成截图），供申请人发给承包商培训签到入场，流程自洽。</div>
+    <div class="warn"><b>可提示</b>若工人到场才发现未培训，需当场考试。可结合"到场前短信/二维码预提醒先考"优化体验（属 #7 培训考试改进方案范畴），不改变强卡规则。</div>
+  </div>
+</section>
+
+<div class="decision">
+  <b>总体合理性结论：</b> 当前系统的角色分工与操作流程基本合理——作业人员免登录填记录、审批人必须登录看记录、危险作业三方会签、隐患人工派单、入厂强卡培训，均符合 EHS 合规与安全底线，且你已确认这些"不妥协"项。<br>
+  主要可优化点集中在<b>操作性（减少重复填写、聚合待办、预提醒）</b>，而非流程本身的合理性；其中"常用信息下拉记忆"本次已落地，其余（复制模板、自接整改、错题即学、预提醒）已列入下方待办方案，按"先给方案、确认后再加"推进。
+</div>
+
+</div>
+<footer>
+  EHS 系统 · 分角色操作流程图与合理性分析 &nbsp;|&nbsp; 颜色：
+  <span class="legend">
+    <span><i class="dot" style="background:var(--applicant)"></i>普通员工</span>
+    <span><i class="dot" style="background:var(--approver)"></i>部门/审批</span>
+    <span><i class="dot" style="background:var(--safety)"></i>安全员</span>
+    <span><i class="dot" style="background:var(--manager)"></i>经理/管理员</span>
+    <span><i class="dot" style="background:var(--external)"></i>外部/免登录</span>
+  </span>
+</footer>
+</body>
+</html>

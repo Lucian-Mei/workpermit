@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作业票管理系统 · 大白话版（老板汇报）</title>
+<style>
+  :root{
+    --bg:#f7f3ec; --paper:#fffdf8; --ink:#2b2620; --muted:#7a7165;
+    --line:#e7ded0; --accent:#c98a3d; --accent2:#b06f2a;
+    --emp:#2f6fb3; --mgr:#d9822b; --con:#3e8a5a; --wrk:#7a5aa8;
+    --emp-bg:#eaf2fb; --mgr-bg:#fdf1e3; --con-bg:#eaf5ee; --wrk-bg:#f0ebf8;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--ink); font-family:"Microsoft YaHei","PingFang SC",-apple-system,sans-serif; line-height:1.7; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1060px; margin:0 auto; padding:32px 20px 64px;}
+  header{text-align:center; padding:28px 20px 20px;}
+  .kicker{display:inline-block; font-size:13px; letter-spacing:2px; color:var(--accent2); border:1px solid var(--accent); border-radius:999px; padding:4px 14px; margin-bottom:14px;}
+  h1{font-size:34px; font-weight:800; letter-spacing:1px;}
+  .sub{color:var(--muted); margin-top:10px; font-size:16px; max-width:720px; margin-left:auto; margin-right:auto;}
+  .hero{background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:26px 28px; margin:20px 0 28px; box-shadow:0 2px 14px rgba(90,70,40,.06);}
+  .hero h2{font-size:21px; margin-bottom:12px; display:flex; align-items:center; gap:10px;}
+  .hero p{color:#4c443a; font-size:15px;}
+  .hero .big{font-size:17px; font-weight:700; color:var(--accent2);}
+  section{margin-top:40px;}
+  .sec-title{font-size:24px; font-weight:800; text-align:center; margin-bottom:6px;}
+  .sec-desc{text-align:center; color:var(--muted); font-size:14px; margin-bottom:22px;}
+  /* 角色卡 */
+  .roles{display:grid; grid-template-columns:repeat(4,1fr); gap:16px;}
+  @media(max-width:820px){.roles{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:520px){.roles{grid-template-columns:1fr;}}
+  .role{border-radius:14px; padding:20px 18px; border:1px solid var(--line); background:var(--paper);}
+  .role .tag{display:inline-block; color:#fff; font-size:13px; font-weight:700; border-radius:8px; padding:3px 10px; margin-bottom:12px;}
+  .role.emp .tag{background:var(--emp);} .role.mgr .tag{background:var(--mgr);}
+  .role.con .tag{background:var(--con);} .role.wrk .tag{background:var(--wrk);}
+  .role h3{font-size:18px; margin-bottom:6px;}
+  .role .who{font-size:13px; color:var(--muted); margin-bottom:12px;}
+  .role ul{list-style:none;}
+  .role li{font-size:14px; padding:6px 0 6px 22px; position:relative; border-bottom:1px dashed var(--line);}
+  .role li:last-child{border-bottom:none;}
+  .role li::before{content:"✓"; position:absolute; left:0; font-weight:800;}
+  .role.emp li::before{color:var(--emp);} .role.mgr li::before{color:var(--mgr);}
+  .role.con li::before{color:var(--con);} .role.wrk li::before{color:var(--wrk);}
+  /* 主流程 */
+  .flow{background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:24px; box-shadow:0 2px 14px rgba(90,70,40,.06);}
+  .step{display:flex; gap:16px; padding:14px 0; border-bottom:1px dashed var(--line);}
+  .step:last-child{border-bottom:none;}
+  .step .num{flex:0 0 44px; height:44px; border-radius:50%; background:var(--accent); color:#fff; font-weight:800; font-size:18px; display:flex; align-items:center; justify-content:center;}
+  .step .body{flex:1;}
+  .step .title{font-size:16px; font-weight:700;}
+  .step .who-do{font-size:12px; color:#fff; border-radius:6px; padding:1px 8px; margin-left:8px; font-weight:700; vertical-align:1px;}
+  .who-emp{background:var(--emp);} .who-mgr{background:var(--mgr);} .who-con{background:var(--con);} .who-wrk{background:var(--wrk);}
+  .step .plain{font-size:14px; color:#4c443a; margin-top:4px;}
+  /* 状态机 */
+  .states{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; align-items:center;}
+  .state{border-radius:10px; padding:8px 14px; font-size:14px; font-weight:700; background:var(--paper); border:1px solid var(--line);}
+  .state.done{background:#f3ead8;}
+  .arrow{color:var(--accent2); font-weight:800; font-size:16px;}
+  /* 机制卡 */
+  .mech{display:grid; grid-template-columns:repeat(2,1fr); gap:16px;}
+  @media(max-width:720px){.mech{grid-template-columns:1fr;}}
+  .mech-card{background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px 20px;}
+  .mech-card h3{font-size:17px; margin-bottom:8px;}
+  .mech-card p{font-size:14px; color:#4c443a;}
+  .mech-card .q{display:inline-block; width:20px; height:20px; line-height:20px; text-align:center; background:var(--accent); color:#fff; border-radius:6px; font-size:13px; font-weight:800; margin-right:8px;}
+  /* 审批表 */
+  table{width:100%; border-collapse:collapse; background:var(--paper); border-radius:12px; overflow:hidden; font-size:14px;}
+  th,td{padding:11px 14px; text-align:left; border-bottom:1px solid var(--line);}
+  th{background:#efe6d5; font-weight:700;}
+  tr:last-child td{border-bottom:none;}
+  .lvl{display:inline-block; padding:1px 9px; border-radius:6px; font-weight:700; font-size:13px; color:#fff;}
+  .lvl2{background:var(--con);} .lvl3{background:var(--mgr);} .lvl4{background:#c0493f;}
+  /* 看板 */
+  .board{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+  @media(max-width:720px){.board{grid-template-columns:1fr;}}
+  .board-item{background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px; text-align:center;}
+  .board-item .n{font-size:30px; font-weight:800; color:var(--accent2);}
+  .board-item .l{font-size:13px; color:var(--muted); margin-top:2px;}
+  .value{background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:24px 28px; text-align:center;}
+  .value h3{font-size:20px; margin-bottom:10px;}
+  .value p{font-size:15px; color:#4c443a; max-width:760px; margin:0 auto;}
+  .foot{text-align:center; color:var(--muted); font-size:12px; margin-top:40px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="kicker">EHS · 作业票管理系统</span>
+    <h1>一张作业票，扫码全搞定</h1>
+    <p class="sub">把「谁在厂里干什么活、安不安全、谁来批、谁来监督」全部搬到手机和电脑上，<br>员工、经理、施工方、作业人员各干各的，清清楚楚。</p>
+  </header>
+
+  <div class="hero">
+    <h2>💡 一句话看懂这个系统</h2>
+    <p>以前办一张作业票要跑纸、跑人、跑审批，现场还看不到风险；现在改成：<br>
+    <span class="big">内部员工在系统里发起 → 施工方手机扫码补信息 → 经理线上审批 → 作业人员扫码培训、扫码进厂 → 现场交底签字 → 每天检查 → 完工归档。</span><br>
+    全程一张票、一个编号、一串二维码，谁到哪一步、安不安全，手机电脑一看就明白。</p>
+  </div>
+
+  <section>
+    <div class="sec-title">四类人，各干各的</div>
+    <div class="sec-desc">系统里只有四种使用者，每个人都有自己的一份"活儿"</div>
+    <div class="roles">
+      <div class="role emp">
+        <span class="tag">员工 · 申请人</span>
+        <h3>发起作业票</h3>
+        <div class="who">谁干活，就谁来申请</div>
+        <ul>
+          <li>登录系统，点「新建作业票」</li>
+          <li>填在哪干、什么时间、干什么活</li>
+          <li>危险活可"挂"在常规活下面，信息自动带过来</li>
+          <li>提交后，系统自动把链接+二维码发给施工方</li>
+          <li>批完后，在电脑上把作业票打印出来</li>
+        </ul>
+      </div>
+      <div class="role con">
+        <span class="tag">施工方 · 负责人</span>
+        <h3>补信息、做风险分析</h3>
+        <div class="who">不用登录，手机点开就能用</div>
+        <ul>
+          <li>收到链接/二维码，点开就能填</li>
+          <li>填监护人、施工方案</li>
+          <li>做 JSA 风险分析（系统 AI 帮着找风险、给防范措施）</li>
+          <li>传作业证（动火传焊工证等，系统判断要不要）</li>
+          <li>填完提交，剩下的不用管</li>
+        </ul>
+      </div>
+      <div class="role mgr">
+        <span class="tag">经理 · 审批人</span>
+        <h3>线上拍板批不批</h3>
+        <div class="who">部门主管 / EHS / 工程部经理 / 区域负责人</div>
+        <ul>
+          <li>收到待审批提醒，点开看</li>
+          <li>越危险的活，审批的人越多</li>
+          <li>批完自动通知员工和施工方</li>
+          <li>动火等危险作业额外把关</li>
+        </ul>
+      </div>
+      <div class="role wrk">
+        <span class="tag">作业人员 · 工人</span>
+        <h3>扫码进厂、签字交底</h3>
+        <div class="who">凭手机扫码，全程不登录</div>
+        <ul>
+          <li>先扫「培训码」考试，合格留记录</li>
+          <li>进厂扫「入场码」+ 输姓名身份证</li>
+          <li>校验通过才放行，作业变「进行中」</li>
+          <li>下班扫码签出，人都走了变「已暂停」</li>
+          <li>现场交底后，手机签字确认</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-title">一张作业票的「旅程」</div>
+    <div class="sec-desc">从发起到归档，一共 10 步，每步谁来做、做什么</div>
+    <div class="flow">
+      <div class="step">
+        <div class="num">1</div>
+        <div class="body">
+          <div class="title">发起作业票<span class="who-do who-emp">员工</span></div>
+          <div class="plain">员工登录，点「新建作业票」，填好地点、时间、干什么活。常规活直接建；危险活可以挂在某张常规活下面，信息自动带过来，不用重复填。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <div class="body">
+          <div class="title">发出邀请<span class="who-do who-emp">员工 / 系统</span></div>
+          <div class="plain">员工提交后，系统自动生成一个「邀请链接 + 二维码」，发给施工方负责人。邮件先不上，用二维码和站内通知就行，以后要换邮箱也方便。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <div class="body">
+          <div class="title">施工方补信息<span class="who-do who-con">施工方负责人</span></div>
+          <div class="plain">负责人手机点开链接（不用登录），补填监护人、施工方案，做 JSA 风险分析（AI 帮忙找风险、列防范措施），该传的作业证传上去。填完提交。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">4</div>
+        <div class="body">
+          <div class="title">线上审批<span class="who-do who-mgr">经理</span></div>
+          <div class="plain">审批人收到提醒，逐级线上批。常规活 2 个人批；危险活挂在常规活下面 3 个人批；独立危险活 4 个人批（必须经过区域负责人）。批不批、谁批的，都有记录。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">5</div>
+        <div class="body">
+          <div class="title">批准通知<span class="who-do who-mgr">系统</span></div>
+          <div class="plain">批完系统自动通知员工和施工方，附上作业票编号、培训二维码。这就是后面所有动作的"通行证"。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">6</div>
+        <div class="body">
+          <div class="title">培训考核<span class="who-do who-wrk">作业人员</span></div>
+          <div class="plain">工人提前扫「培训码」考试，考过就有记录。这个记录有有效期——效期内再进厂不用重复考，过期才要重新考。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">7</div>
+        <div class="body">
+          <div class="title">扫码进厂 / 签出<span class="who-do who-wrk">作业人员</span></div>
+          <div class="plain">进厂扫「入场码」，输作业票编号 + 姓名 + 身份证（只做登记，不拍照、不联网实名），系统校验培训合格才放行，作业状态变「进行中」。下班扫码签出，人都走了变「已暂停」。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">8</div>
+        <div class="body">
+          <div class="title">现场交底 + 签字<span class="who-do who-emp">员工 + 施工方</span></div>
+          <div class="plain">第一次进厂，员工和施工方负责人在现场一起做安全交底，负责人签字。所有作业人员手机扫码看风险、签字确认。签完员工在电脑上把作业票打印出来（现场打印机远也不用跑，手机先签、电脑后打印）。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">9</div>
+        <div class="body">
+          <div class="title">每天检查<span class="who-do who-mgr">安全员 / 监护人</span></div>
+          <div class="plain">交底后，系统自动开启「每日检查」任务，每天记一次现场检查。危险作业还有单独的定时检查（比如动火后每隔一段时间要巡视）。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">10</div>
+        <div class="body">
+          <div class="title">完工 / 续期<span class="who-do who-emp">员工</span></div>
+          <div class="plain">活干完，员工点「完成」，票归档。要是到期还没干完，员工点「续期」，确认信息改一改，重新走一遍审批，开始新一轮监管。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-title">一张票的状态怎么变</div>
+    <div class="sec-desc">票走到哪一步，状态就自动更新，看板一眼能看出</div>
+    <div class="states">
+      <span class="state">草稿</span><span class="arrow">→</span>
+      <span class="state">待施工方填</span><span class="arrow">→</span>
+      <span class="state">待审批</span><span class="arrow">→</span>
+      <span class="state done">已批准</span><span class="arrow">→</span>
+      <span class="state">进行中</span><span class="arrow">⇄</span>
+      <span class="state">已暂停</span><span class="arrow">→</span>
+      <span class="state">完工</span><span class="arrow">→</span>
+      <span class="state">已归档</span>
+    </div>
+    <div class="sec-desc" style="margin-top:14px;">进厂签到 → 变「进行中」；下班都签出 → 变「已暂停」；批不过 → 退回；作废 → 留着作废记录，编号不重复用。</div>
+  </section>
+
+  <section>
+    <div class="sec-title">几个关键机制，用大白话说</div>
+    <div class="sec-desc">不写代码、不写术语，只看它解决什么问题</div>
+    <div class="mech">
+      <div class="mech-card">
+        <h3><span class="q">1</span>三种二维码，各管一件事</h3>
+        <p><b>邀请码</b>——给施工方填信息；<b>培训码</b>——给工人考试；<b>入场码</b>——进厂签到。扫不同的码，干不同的事，不用装 App、不用记账号。</p>
+      </div>
+      <div class="mech-card">
+        <h3><span class="q">2</span>培训有「有效期」</h3>
+        <p>工人考过一次培训，系统记下"到什么时候有效"。效期内进厂直接放行，不用重复考；过期了才需要再考一次。省时又不放松安全。</p>
+      </div>
+      <div class="mech-card">
+        <h3><span class="q">3</span>危险活可以「挂」在常规活下面</h3>
+        <p>一个工程可能既有常规活、又有危险活。危险活可以挂靠常规活——信息共享、一起管理，审批也不用重复跑。没有常规活的，就独立办，但审批多一道、风险分析更严。</p>
+      </div>
+      <div class="mech-card">
+        <h3><span class="q">4</span>作业证「该传才传」</h3>
+        <p>系统看作业内容自动判断要不要证：动火可能要焊工证、吊装要吊装证、修冰箱要制冷证。默认工人可以自愿传，但系统判断"必须"时，不传就提交不了。</p>
+      </div>
+      <div class="mech-card">
+        <h3><span class="q">5</span>身份证只登记、不拍照</h3>
+        <p>进厂登记姓名和身份证号，只用来核对"是不是培训过的人"，不做实名联网比对、也不拍照，保护隐私又够用。</p>
+      </div>
+      <div class="mech-card">
+        <h3><span class="q">6</span>作业票打印是「活」的</h3>
+        <p>打印出来的作业票上，作业内容、风险分析、防范措施都是根据这次作业自动生成的，每次都不一样，不是一张死表格。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-title">审批：到底谁拍板？</div>
+    <div class="sec-desc">记住一句：越危险的活，签字的人越多；独立危险活必须过「区域负责人」</div>
+    <table>
+      <thead>
+        <tr><th>作业类型</th><th>谁审批（按顺序）</th><th>级数</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>常规作业</td>
+          <td>区域负责人 → 承包商管理部门审批人</td>
+          <td><span class="lvl lvl2">2 级</span></td>
+        </tr>
+        <tr>
+          <td>危险作业（挂在常规活下面）</td>
+          <td>部门主管 → EHS 工程师 → 工程部经理</td>
+          <td><span class="lvl lvl3">3 级</span></td>
+        </tr>
+        <tr>
+          <td>危险作业（独立，没挂常规活）</td>
+          <td>部门主管 → <b>区域负责人</b> → EHS 工程师 → 工程部经理</td>
+          <td><span class="lvl lvl4">4 级</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top:14px;font-size:13px;color:var(--muted);text-align:center;">💡 “审批人”不是死绑最高领导：系统按「岗位/角色」配置，部门主管、副经理、经理或指定人都可以，缺配时提交会提示。</p>
+  </section>
+
+  <section>
+    <div class="sec-title">老板一眼看什么（看板）</div>
+    <div class="sec-desc">打开系统首页，几个数就讲清楚今天厂里安全情况</div>
+    <div class="board">
+      <div class="board-item"><div class="n">N</div><div class="l">今天在厂里进行中的作业</div></div>
+      <div class="board-item"><div class="n">N</div><div class="l">已暂停（下班/暂停）的作业</div></div>
+      <div class="board-item"><div class="n">N</div><div class="l">待审批的作业票</div></div>
+      <div class="board-item"><div class="n">N</div><div class="l">危险作业（单独列出）</div></div>
+      <div class="board-item"><div class="n">%</div><div class="l">每日检查完成率</div></div>
+      <div class="board-item"><div class="n">N</div><div class="l">今天进厂人次</div></div>
+    </div>
+    <div class="sec-desc" style="margin-top:16px;">每一张票都能点开看：谁申请、谁批的、施工方填了什么、工人培训过没有、检查做了几次——全程留痕、可查可追溯。</div>
+  </section>
+
+  <section>
+    <div class="value">
+      <h3>一句话总结</h3>
+      <p>这套系统不改变你们的管理规矩，只是把原来靠纸、靠跑腿、靠盯人的流程，变成<b>一张票、一串二维码、手机上点一点</b>——员工好申请、施工方好配合、经理好审批、工人好进厂，安全情况老板随时看得见。</p>
+    </div>
+  </section>
+
+  <div class="foot">EHS 作业票管理系统 · 大白话说明（供内部汇报，非技术版）</div>
+
+</div>
+</body>
+</html>

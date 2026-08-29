@@ -1,0 +1,692 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================================
+   设计令牌 · 精炼安全控制台（Refined Safety Console）
+   所有令牌以「H S% L%」通道形式存储，供 Tailwind 的
+   hsl(var(--x) / <alpha-value>) 注入透明度，实现运行时换肤。
+   皮肤（skin）在基础令牌之外，还可改变：
+   圆角 / 材质 / 字体 / 信息密度（见下方 [data-*] 维度块）。
+   可读性优先：所有前景/次要前景令牌均按 WCAG AA（4.5:1）调校。
+   ========================================================= */
+:root {
+  /* 画布 / 表面（明亮优先 · 冷静中性） */
+  --background: 220 33% 97%;
+  --foreground: 222 28% 13%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 28% 13%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 28% 13%;
+
+  /* 主色（信赖蓝，被 [data-accent] 覆盖） */
+  --primary: 221 83% 53%;
+  --primary-foreground: 0 0% 100%;
+  --primary-soft: 221 91% 95%;
+
+  --secondary: 220 20% 95%;
+  --secondary-foreground: 222 28% 13%;
+  --muted: 220 20% 94%;
+  --muted-foreground: 218 13% 42%;
+
+  --accent: 221 91% 95%;
+  --accent-foreground: 221 83% 38%;
+
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 152 56% 36%;
+  --success-foreground: 0 0% 100%;
+  --warning: 32 95% 44%;
+  --warning-foreground: 0 0% 100%;
+  --info: 221 83% 53%;
+  --info-foreground: 0 0% 100%;
+
+  --border: 218 21% 90%;
+  --input: 218 21% 87%;
+  --ring: 221 83% 53%;
+
+  /* 侧边栏（轻量着色面板，明亮模式下与画布分层） */
+  --sidebar: 222 31% 95%;
+  --sidebar-foreground: 218 13% 42%;
+  --sidebar-primary: 221 83% 53%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 221 90% 95%;
+  --sidebar-accent-foreground: 222 28% 13%;
+  --sidebar-border: 220 20% 88%;
+  --sidebar-ring: 221 83% 53%;
+
+  /* 图表配色（沉稳、协调） */
+  --chart-1: 221 83% 55%;
+  --chart-2: 199 79% 46%;
+  --chart-3: 262 60% 58%;
+  --chart-4: 32 90% 52%;
+  --chart-5: 160 55% 42%;
+
+  /* 风险等级（明亮） */
+  --risk-critical: 0 74% 42%;
+  --risk-critical-bg: 0 80% 96%;
+  --risk-critical-text: 0 72% 34%;
+  --risk-high: 24 90% 42%;
+  --risk-high-bg: 24 90% 95%;
+  --risk-high-text: 24 85% 32%;
+  --risk-medium: 35 85% 36%;
+  --risk-medium-bg: 38 92% 92%;
+  --risk-medium-text: 35 75% 27%;
+  --risk-low: 152 55% 33%;
+  --risk-low-bg: 152 48% 93%;
+  --risk-low-text: 152 58% 23%;
+
+  /* 语义状态令牌（固定，不随主色变化）
+     正常 / 待处理 / 异常 / 已关闭 —— 状态优先配色 */
+  --ok-bg: 152 50% 92%;        --ok-fg: 152 60% 27%;
+  --warn-bg: 38 92% 92%;       --warn-fg: 32 90% 33%;
+  --danger-bg: 0 80% 95%;      --danger-fg: 0 72% 38%;
+  --info-bg: 221 90% 95%;      --info-fg: 221 78% 33%;
+  --mute-bg: 220 18% 94%;      --mute-fg: 220 14% 38%;
+
+  /* —— 皮肤维度：卡片材质（surface）· 默认即玻璃拟态 —— */
+  --card-bg: hsl(var(--card) / 0.72);
+  --card-border: hsl(var(--foreground) / 0.09);
+  --card-shadow: 0 1px 2px hsl(var(--shadow-color) / 0.05), 0 16px 40px -20px hsl(var(--shadow-color) / 0.26);
+  --surface-blur: 14px;
+
+  /* —— 皮肤维度：圆角（radius） —— */
+  --radius: 0.75rem;
+
+  /* —— 皮肤维度：字体（font） —— */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  /* —— 皮肤维度：密度（density） —— */
+  --pad-card: 1.25rem;
+  --gap-card: 1.25rem;
+  --row-h: 3.25rem;
+  --control-h: 2.625rem;
+  --page-pad: 1.5rem;
+
+  --shadow-color: 222 35% 32%;
+  --hairline: hsl(var(--border) / 0.9);
+  font-family: var(--font-sans);
+}
+
+/* 等宽字体编号（隐患/作业票号）：按需单独使用 font-mono 类，不全局覆盖 */
+
+/* ===== 主色变体（accent） — 均调校至可读对比度 ===== */
+[data-accent='green'] {
+  --primary: 152 56% 38%;
+  --primary-foreground: 0 0% 100%;
+  --primary-soft: 152 45% 93%;
+  --accent: 152 45% 93%;
+  --accent-foreground: 152 60% 27%;
+  --ring: 152 56% 44%;
+  --sidebar-primary: 152 56% 40%;
+  --info: 152 56% 38%;
+  --chart-1: 152 58% 42%;
+}
+[data-accent='cyan'] {
+  --primary: 199 85% 44%;
+  --primary-foreground: 0 0% 100%;
+  --primary-soft: 199 70% 93%;
+  --accent: 199 70% 93%;
+  --accent-foreground: 199 85% 30%;
+  --ring: 199 85% 48%;
+  --sidebar-primary: 199 85% 46%;
+  --info: 199 85% 44%;
+  --chart-1: 199 85% 46%;
+}
+[data-accent='blue'] {
+  --primary: 221 83% 53%;
+  --primary-foreground: 0 0% 100%;
+  --primary-soft: 221 91% 95%;
+  --accent: 221 91% 95%;
+  --accent-foreground: 221 83% 38%;
+  --ring: 221 83% 53%;
+  --sidebar-primary: 221 83% 53%;
+  --info: 221 83% 53%;
+  --chart-1: 221 83% 55%;
+}
+[data-accent='violet'] {
+  --primary: 262 70% 56%;
+  --primary-foreground: 0 0% 100%;
+  --primary-soft: 262 55% 94%;
+  --accent: 262 55% 94%;
+  --accent-foreground: 262 65% 36%;
+  --ring: 262 70% 58%;
+  --sidebar-primary: 262 70% 56%;
+  --info: 262 70% 56%;
+  --chart-1: 262 70% 58%;
+}
+[data-accent='amber'] {
+  --primary: 32 92% 48%;
+  --primary-foreground: 0 0% 100%;
+  --primary-soft: 38 92% 93%;
+  --accent: 38 92% 93%;
+  --accent-foreground: 32 88% 30%;
+  --ring: 32 92% 48%;
+  --sidebar-primary: 32 92% 48%;
+  --info: 32 92% 48%;
+  --chart-1: 32 92% 50%;
+}
+[data-accent='indigo'] {
+  --primary: 239 78% 58%;
+  --primary-foreground: 0 0% 100%;
+  --primary-soft: 239 65% 94%;
+  --accent: 239 65% 94%;
+  --accent-foreground: 239 75% 38%;
+  --ring: 239 78% 58%;
+  --sidebar-primary: 239 78% 58%;
+  --info: 239 78% 58%;
+  --chart-1: 239 78% 60%;
+}
+
+/* ===== 暗色模式（精炼石板灰，无霓虹） ===== */
+[data-mode='dark'] {
+  --background: 222 30% 9%;
+  --foreground: 220 20% 92%;
+  --card: 222 25% 13%;
+  --card-foreground: 220 20% 92%;
+  --popover: 222 26% 15%;
+  --popover-foreground: 220 20% 92%;
+
+  --primary: 221 83% 62%;
+  --primary-foreground: 222 35% 9%;
+  --primary-soft: 221 60% 20%;
+  --accent: 221 50% 19%;
+  --accent-foreground: 221 83% 78%;
+
+  --secondary: 222 18% 19%;
+  --secondary-foreground: 220 20% 92%;
+  --muted: 222 16% 18%;
+  --muted-foreground: 218 12% 64%;
+
+  --destructive: 0 72% 58%;
+  --destructive-foreground: 222 35% 9%;
+  --success: 152 55% 52%;
+  --success-foreground: 222 35% 9%;
+  --warning: 38 92% 58%;
+  --warning-foreground: 222 35% 9%;
+  --info: 221 83% 62%;
+  --info-foreground: 222 35% 9%;
+
+  --border: 222 16% 21%;
+  --input: 222 16% 24%;
+  --ring: 221 83% 62%;
+
+  --sidebar: 222 32% 7%;
+  --sidebar-foreground: 218 12% 66%;
+  --sidebar-primary: 221 83% 64%;
+  --sidebar-primary-foreground: 222 35% 9%;
+  --sidebar-accent: 222 22% 16%;
+  --sidebar-accent-foreground: 220 20% 92%;
+  --sidebar-border: 222 20% 15%;
+  --sidebar-ring: 221 83% 62%;
+
+  --chart-1: 221 83% 64%;
+  --chart-2: 199 79% 58%;
+  --chart-3: 262 65% 70%;
+  --chart-4: 32 90% 62%;
+  --chart-5: 160 50% 55%;
+
+  --risk-critical: 0 75% 62%;
+  --risk-critical-bg: 0 45% 18%;
+  --risk-critical-text: 0 85% 75%;
+  --risk-high: 25 92% 62%;
+  --risk-high-bg: 25 55% 18%;
+  --risk-high-text: 28 95% 74%;
+  --risk-medium: 45 92% 58%;
+  --risk-medium-bg: 45 55% 17%;
+  --risk-medium-text: 45 95% 70%;
+  --risk-low: 152 55% 55%;
+  --risk-low-bg: 152 40% 16%;
+  --risk-low-text: 152 65% 74%;
+
+  --ok-bg: 152 45% 17%;        --ok-fg: 152 70% 74%;
+  --warn-bg: 35 55% 17%;       --warn-fg: 38 95% 72%;
+  --danger-bg: 0 55% 18%;      --danger-fg: 0 85% 76%;
+  --info-bg: 221 55% 19%;      --info-fg: 221 90% 80%;
+  --mute-bg: 222 18% 19%;      --mute-fg: 220 14% 66%;
+
+  --shadow-color: 222 45% 2%;
+  --hairline: hsl(var(--border) / 0.85);
+}
+[data-mode='dark'][data-accent='green'] {
+  --primary: 152 55% 50%;
+  --primary-foreground: 222 35% 9%;
+  --sidebar-primary: 152 55% 52%;
+  --info: 152 55% 50%;
+}
+[data-mode='dark'][data-accent='cyan'] {
+  --primary: 199 80% 54%;
+  --primary-foreground: 222 35% 9%;
+  --sidebar-primary: 199 80% 56%;
+  --info: 199 80% 54%;
+}
+[data-mode='dark'][data-accent='violet'] {
+  --primary: 262 65% 68%;
+  --primary-foreground: 222 35% 9%;
+  --sidebar-primary: 262 65% 68%;
+  --info: 262 65% 68%;
+}
+[data-mode='dark'][data-accent='amber'] {
+  --primary: 36 92% 56%;
+  --primary-foreground: 222 35% 9%;
+  --sidebar-primary: 36 92% 56%;
+  --info: 36 92% 56%;
+}
+[data-mode='dark'][data-accent='indigo'] {
+  --primary: 239 75% 68%;
+  --primary-foreground: 222 35% 9%;
+  --sidebar-primary: 239 75% 68%;
+  --info: 239 75% 68%;
+}
+
+/* ===== 皮肤维度：圆角 ===== */
+[data-radius='sm'] { --radius: 0.375rem; }
+[data-radius='md'] { --radius: 0.625rem; }
+[data-radius='lg'] { --radius: 0.875rem; }
+[data-radius='xl'] { --radius: 1.125rem; }
+
+/* ===== 皮肤维度：材质（surface） ===== */
+[data-surface='flat'] {
+  --card-bg: hsl(var(--card));
+  --card-border: hsl(var(--foreground) / 0.08);
+  --card-shadow: 0 1px 2px hsl(var(--shadow-color) / 0.05);
+  --surface-blur: 0px;
+}
+[data-surface='soft'] {
+  --card-bg: hsl(var(--card) / 0.85);
+  --card-border: hsl(var(--foreground) / 0.08);
+  --card-shadow: 0 1px 3px hsl(var(--shadow-color) / 0.06), 0 16px 40px -16px hsl(var(--shadow-color) / 0.22);
+  --surface-blur: 8px;
+}
+[data-surface='glass'] {
+  --card-bg: hsl(var(--card) / 0.6);
+  --card-border: hsl(var(--foreground) / 0.11);
+  --card-shadow: 0 8px 32px hsl(var(--shadow-color) / 0.30);
+  --surface-blur: 20px;
+}
+[data-mode='light'][data-surface='glass'] {
+  --card-bg: hsl(0 0% 100% / 0.62);
+  --card-border: hsl(222 20% 20% / 0.09);
+}
+
+/* ===== 皮肤维度：字体 ===== */
+[data-font='sans']   { --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', sans-serif; }
+[data-font='rounded'] { --font-sans: 'Quicksand', 'Varela Round', ui-rounded, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+[data-font='mono']   { --font-sans: 'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace; }
+
+/* ===== 皮肤维度：信息密度 ===== */
+[data-density='compact']    { --pad-card: 0.875rem; --gap-card: 0.875rem; --row-h: 2.75rem; --control-h: 2.25rem; --page-pad: 1.125rem; }
+[data-density='cozy']      { --pad-card: 1.125rem; --gap-card: 1.125rem; --row-h: 3rem;    --control-h: 2.5rem;  --page-pad: 1.375rem; }
+[data-density='comfortable']{ --pad-card: 1.25rem;  --gap-card: 1.25rem;  --row-h: 3.25rem; --control-h: 2.625rem;--page-pad: 1.5rem;  }
+
+@layer base {
+  * { border-color: hsl(var(--border)); }
+  html { color-scheme: light; }
+  [data-mode='dark'] { color-scheme: dark; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    background-image:
+      radial-gradient(900px circle at 86% -12%, hsl(var(--primary) / 0.07), transparent 46%),
+      radial-gradient(720px circle at -6% 108%, hsl(var(--primary) / 0.05), transparent 46%);
+    background-attachment: fixed;
+  }
+  ::selection { background: hsl(var(--primary) / 0.22); color: hsl(var(--foreground)); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 9999px;
+    border: 2px solid hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
+  :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; border-radius: 4px; }
+}
+
+@layer components {
+  /* 科技感统计卡片：统一质感，状态色仅作顶部光带+左侧竖线 */
+  .metric-tile {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--card-bg);
+    border: 1px solid hsl(var(--foreground) / 0.09);
+    border-radius: var(--radius);
+    -webkit-backdrop-filter: blur(var(--surface-blur)) saturate(160%);
+    backdrop-filter: blur(var(--surface-blur)) saturate(160%);
+    box-shadow:
+      0 1px 2px hsl(var(--shadow-color) / 0.05),
+      0 14px 36px -16px hsl(var(--shadow-color) / 0.20);
+    background-image: linear-gradient(155deg,
+      color-mix(in srgb, var(--metric-color, hsl(var(--primary))) 9%, transparent) 0%,
+      color-mix(in srgb, var(--metric-color, hsl(var(--primary))) 3%, transparent) 46%,
+      transparent 100%);
+    transition: transform 260ms cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 260ms ease, border-color 260ms ease, background 260ms ease;
+  }
+  .metric-tile:hover {
+    transform: translateY(-4px);
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.7),
+      0 4px 10px hsl(var(--shadow-color) / 0.06),
+      0 24px 56px -18px hsl(var(--shadow-color) / 0.28);
+    border-color: hsl(var(--primary) / 0.45);
+  }
+  .metric-tile-active {
+    background-image: linear-gradient(155deg,
+      color-mix(in srgb, var(--metric-color, hsl(var(--primary))) 17%, transparent) 0%,
+      color-mix(in srgb, var(--metric-color, hsl(var(--primary))) 6%, transparent) 52%,
+      transparent 100%);
+    border-color: color-mix(in srgb, var(--metric-color, hsl(var(--primary))) 38%, hsl(var(--foreground) / 0.09));
+  }
+  .metric-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: calc(var(--radius) * 0.6);
+    background: color-mix(in srgb, var(--metric-color, hsl(var(--primary))) 16%, transparent);
+    color: var(--metric-color, hsl(var(--primary)));
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.22),
+      0 2px 6px hsl(0 0% 0% / 0.10);
+  }
+  @media (min-width: 640px) {
+    .metric-icon {
+      width: 42px;
+      height: 42px;
+    }
+  }
+  .metric-halo {
+    position: absolute;
+    right: -16px;
+    bottom: -16px;
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--metric-color, hsl(var(--primary))) 0%, transparent 70%);
+    opacity: 0.06;
+    pointer-events: none;
+  }
+  .metric-tile:hover .metric-halo {
+    opacity: 0.10;
+  }
+
+  /* 暗色模式下的玻璃微差 */
+  [data-mode='dark'] .metric-tile {
+    box-shadow:
+      0 1px 2px hsl(var(--shadow-color) / 0.10),
+      0 14px 36px -16px hsl(0 0% 0% / 0.35);
+  }
+  [data-mode='dark'] .metric-tile:hover {
+    box-shadow:
+      0 4px 10px hsl(0 0% 0% / 0.14),
+      0 24px 56px -18px hsl(0 0% 0% / 0.45);
+  }
+
+  /* —— 卡片：玻璃拟态（无横线、无高亮边框） —— */
+  .card {
+    position: relative;
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    box-shadow: var(--card-shadow);
+    -webkit-backdrop-filter: blur(var(--surface-blur)) saturate(160%);
+    backdrop-filter: blur(var(--surface-blur)) saturate(160%);
+    transition: box-shadow 240ms ease, transform 240ms ease, border-color 240ms ease, background 240ms ease;
+    /* 玻璃高光：斜向柔光反射，非线条 */
+    background-image: linear-gradient(135deg, hsl(var(--foreground) / 0.05) 0%, transparent 42%);
+  }
+  [data-mode='dark'] .card {
+    background-image: linear-gradient(135deg, hsl(var(--foreground) / 0.07) 0%, transparent 46%);
+  }
+  /* 弹出层本体卡片（Modal/弹窗等 fixed 容器内的 .card）强制不透明实色：
+     全局 .card 是玻璃拟态（--card-bg 半透明 + backdrop-blur），下层内容会透过弹窗背景，
+     影响可读性。弹层内改为 hsl(var(--card)) 实色并取消模糊，遮罩层仍保留半透明。 */
+  .fixed .card {
+    background-color: hsl(var(--card));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .card-hover { cursor: default; }
+  .card-hover:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px hsl(var(--shadow-color) / 0.06), 0 22px 52px -18px hsl(var(--shadow-color) / 0.28);
+    border-color: hsl(var(--foreground) / 0.14);
+  }
+
+  /* 卡片强调：填充色块（非线条） */
+  .card-accent {
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* 控制台辉光背景（克制、专业，去网格线） */
+  .ehs-grid {
+    background-image:
+      radial-gradient(1100px circle at 88% -14%, hsl(var(--primary) / 0.07), transparent 48%),
+      radial-gradient(820px circle at -8% 110%, hsl(var(--primary) / 0.04), transparent 46%);
+    background-attachment: local;
+  }
+  [data-mode='dark'] .ehs-grid {
+    background-image:
+      radial-gradient(1100px circle at 88% -14%, hsl(var(--primary) / 0.12), transparent 50%),
+      radial-gradient(820px circle at -8% 110%, hsl(var(--primary) / 0.07), transparent 50%);
+  }
+
+  /* —— 专业数据表 —— */
+  .ehs-table { @apply w-full text-sm border-collapse; }
+  .ehs-table thead th {
+    @apply text-left px-4 text-[11px] font-semibold uppercase;
+    height: calc(var(--row-h) * 0.8);
+    white-space: nowrap;
+    letter-spacing: 0.05em;
+    color: hsl(var(--muted-foreground));
+    background: hsl(var(--muted) / 0.6);
+    border-bottom: 1px solid hsl(var(--border));
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .ehs-table thead th:first-child { border-top-left-radius: var(--radius); }
+  .ehs-table thead th:last-child  { border-top-right-radius: var(--radius); }
+  .ehs-table tbody td {
+    @apply px-4 align-middle text-left;
+    height: var(--row-h);
+    border-bottom: 1px solid hsl(var(--border) / 0.75);
+    color: hsl(var(--foreground) / 0.92);
+  }
+  .ehs-table tbody td:first-child { font-weight: 600; }
+  .ehs-table tbody tr { @apply transition-colors; }
+  .ehs-table tbody tr:hover { background: hsl(var(--primary) / 0.05); }
+  .ehs-table tbody tr:last-child td { @apply border-b-0; }
+  .ehs-table.zebra tbody tr:nth-child(even) { background: hsl(var(--muted) / 0.4); }
+  .ehs-table.zebra tbody tr:nth-child(even):hover { background: hsl(var(--primary) / 0.05); }
+
+  /* 状态点 */
+  .dot { @apply inline-block h-2 w-2 rounded-full; }
+
+  /* .icon-box / .panel-* / .badge-* 已移至末尾（脱离 @layer 确保打包） */
+
+  /* 页面级淡入 */
+  .page-fade { animation: pageFade 360ms cubic-bezier(0.2, 0, 0, 1) backwards; }
+  @keyframes pageFade {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 危险作业票：卡片橙色边框 + 阴影（无背景填充，仅边框高亮） */
+  .permit-hazard-highlight {
+    position: relative;
+  }
+  .permit-hazard-highlight .card {
+    border-color: rgba(234, 88, 12, 0.40);
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.10), 0 0 1px rgba(234, 88, 12, 0.20);
+  }
+  .permit-hazard-highlight .card.card-hover:hover {
+    border-color: rgba(234, 88, 12, 0.55);
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.15), 0 0 2px rgba(234, 88, 12, 0.25);
+  }
+  /* 危险作业页面：统计卡（metric-tile）+ 其他通用 .card-hazard 标记的元素，统一橙色边框 */
+  .card-hazard,
+  .permit-hazard-highlight .metric-tile {
+    border-color: rgba(234, 88, 12, 0.40);
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.10), 0 0 1px rgba(234, 88, 12, 0.20);
+  }
+  .card-hazard:hover,
+  .permit-hazard-highlight .metric-tile:hover {
+    border-color: rgba(234, 88, 12, 0.55);
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.15), 0 0 2px rgba(234, 88, 12, 0.25);
+  }
+  /* 危险作业页面 MetricTile 默认有 translateY 抬升 + 蓝色边框，这里覆盖 hover 抬升效果保持只换边框颜色 */
+  .permit-hazard-highlight .metric-tile:hover {
+    border-color: rgba(234, 88, 12, 0.55);
+  }
+
+  /* 危险作业票：单卡片级高亮（用于审批台/现场台/危险作业管理列表） */
+  .card.card-hazard {
+    border-color: rgba(234, 88, 12, 0.40) !important;
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.10), 0 0 1px rgba(234, 88, 12, 0.20);
+  }
+  .card.card-hazard.card-hover:hover {
+    border-color: rgba(234, 88, 12, 0.55) !important;
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.15), 0 0 2px rgba(234, 88, 12, 0.25);
+  }
+
+  /* 危险作业票：仅左侧橙色边条（去背景），避免高亮过强 */
+  .ehs-table tr.row-hazard > td:first-child {
+    box-shadow: inset 3px 0 0 0 rgba(234, 88, 12, 0.85);
+  }
+  .ehs-table tr.row-hazard:hover > td {
+    background: rgba(234, 88, 12, 0.06);
+  }
+
+  /* 危险作业票：区块左侧橙色标识条（详情页分区 / 关联票条目） */
+  .hazard-strip {
+    border-left: 3px solid rgba(234, 88, 12, 0.85);
+    background: rgba(234, 88, 12, 0.05);
+  }
+
+  /* 骨架屏 */
+  .skeleton {
+    @apply rounded-md;
+    background: linear-gradient(90deg, hsl(var(--muted) / 0.5) 25%, hsl(var(--muted) / 0.85) 37%, hsl(var(--muted) / 0.5) 63%);
+    background-size: 400% 100%;
+    animation: shimmer 1.4s ease infinite;
+  }
+  @keyframes shimmer {
+    0%   { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+
+  /* ============ 仪表盘「今日待我处理」待办行 ============ */
+  .todo-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    text-align: left;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    padding: 0.8125rem 0.9375rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  }
+  .todo-row:hover {
+    border-color: hsl(var(--primary) / 0.45);
+    box-shadow: 0 1px 2px hsl(var(--shadow-color) / 0.06), 0 12px 28px -14px hsl(var(--shadow-color) / 0.14);
+    transform: translateY(-1px);
+  }
+  .todo-ic {
+    flex: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    display: grid;
+    place-items: center;
+  }
+
+  /* ============ 移动端：分步进度条 ============ */
+  .step-rail { display: flex; gap: 0.5rem; }
+  .step-pill {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.375rem;
+    border-radius: var(--radius);
+    background: transparent;
+    border: 1px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    cursor: pointer;
+  }
+  .step-pill:hover { border-color: hsl(var(--border)); }
+  .step-pill .bar { height: 5px; border-radius: 9999px; background: hsl(var(--muted)); transition: background 0.2s ease; }
+  .step-pill.on .bar, .step-pill.done .bar { background: hsl(var(--primary)); }
+  .step-pill .lbl { display: flex; align-items: center; gap: 0.35rem; font-size: 0.72rem; line-height: 1.1; color: hsl(var(--muted-foreground)); }
+  .step-pill.on .lbl, .step-pill.done .lbl { color: hsl(var(--foreground)); font-weight: 600; }
+  .step-pill .num {
+    width: 18px; height: 18px; border-radius: 9999px;
+    display: grid; place-items: center;
+    font-size: 0.65rem; font-weight: 700;
+    background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); flex: none;
+  }
+  .step-pill.on .num, .step-pill.done .num { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+
+  /* ============ 移动端：大触控勾选清单 ============ */
+  .os-check {
+    display: flex; align-items: center; gap: 0.75rem;
+    min-height: 44px; padding: 0.625rem 0.9375rem;
+    border: 1px solid hsl(var(--border)); border-radius: var(--radius);
+    background: hsl(var(--card)); cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .os-check input { width: 1.25rem; height: 1.25rem; accent-color: hsl(var(--primary)); flex: none; }
+  .os-check.done { border-color: hsl(var(--success) / 0.5); background: hsl(var(--ok-bg)); }
+  .os-check-none {
+    border-style: dashed;
+    background: hsl(var(--muted) / 0.4);
+    font-weight: 600;
+  }
+  .os-check-none.done { border-style: solid; border-color: hsl(var(--success) / 0.6); background: hsl(var(--ok-bg)); }
+}
+
+/* 打印专用：仅保留作业票，隐藏一切无关元素 */
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: static; width: 100%; left: auto; top: auto; }
+  .print-page { break-after: page; page-break-after: always; }
+  .print-page:last-child { break-after: auto; page-break-after: auto; }
+  .no-print { display: none !important; }
+  .print-bg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* ===================== 移动端响应式增强（≤767px） ===================== */
+/* 说明：系统外壳(抽屉菜单)、栅格、表格横向滚动已在组件层用 Tailwind 响应式类做好，
+   此处仅做全局兜底与“原生手机手感”加固，不影响桌面(>767px)表现。 */
+@media (max-width: 767px) {
+  /* 杜绝任何元素引发横向溢出。
+     注意：只能设 html，不能给 body 设 overflow-x（body 一旦成为滚动容器，
+     iOS/移动端 `position: sticky` 顶栏会随内容滚动而失效）。 */
+  html { overflow-x: hidden; }
+  img, svg, video, canvas { max-width: 100%; height: auto; }
+  pre, code { white-space: pre-wrap !important; word-break: break-word; }
+
+  /* 触控目标更易点（≥40px），主操作按钮更醒目、拇指可达 */
+  button, [role="button"], a.btn { min-height: 38px; }
+  /* 仅作用于“主操作按钮”，不要覆盖任何带 .bg-primary 背景色的装饰/徽标元素 */
+  .btn-primary, button.bg-primary, a.bg-primary { min-height: 44px; }
+
+  /* 输入框/选择框 16px，避免 iOS 聚焦时整页缩放 */
+  input, select, textarea { font-size: 16px; }
+
+  /* 卡片内边距在手机上收紧 */
+  .card, .panel { padding: 0.85rem; }
+
+  /* 模态框在手机上铺满，避免局促 */
+  [role="dialog"] { inset: 1rem !important; max-width: none !important; }
+}

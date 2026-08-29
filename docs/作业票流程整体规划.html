@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>作业票申请流程改造 · 整体规划（流程 · 信息流 · 输入输出）</title>
+<style>
+  :root{
+    --navy:#16324f; --navy2:#1f4266; --ink:#1f2937; --muted:#6b7280;
+    --line:#dfe5ec; --bg:#f5f7fa; --card:#ffffff;
+    --teal:#0f766e; --tealbg:#e6f4f2;
+    --amber:#b45309; --amberbg:#fdf3e3;
+    --red:#b91c1c; --redbg:#fdecec;
+    --blue:#1d4ed8; --bluebg:#eaf0fe;
+    --purple:#6d28d9; --purplebg:#f1ecfe;
+    --green:#15803d; --greenbg:#e9f6ee;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Hiragino Sans GB","Segoe UI",Roboto,sans-serif;
+    font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 24px 80px}
+
+  /* ---------- header ---------- */
+  header{background:linear-gradient(135deg,var(--navy) 0%,#0f2438 100%);color:#fff;padding:34px 0 30px;margin-bottom:26px;
+    border-bottom:4px solid var(--teal)}
+  header .wrap{padding-bottom:0}
+  .h-tag{display:inline-block;font-size:12px;letter-spacing:.14em;color:#8fc7c0;border:1px solid #2f5f74;
+    padding:3px 10px;border-radius:3px;margin-bottom:12px}
+  header h1{margin:0 0 8px;font-size:27px;font-weight:700;letter-spacing:.5px}
+  header .sub{color:#b7c7d6;font-size:13.5px;margin-bottom:18px}
+  .badges{display:flex;flex-wrap:wrap;gap:9px}
+  .badge{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:4px;
+    padding:6px 11px;font-size:12.5px;color:#e6eef5}
+  .badge b{color:#7fd8cd;font-weight:600}
+
+  /* ---------- nav ---------- */
+  nav{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);margin-bottom:26px;box-shadow:0 1px 6px rgba(20,40,60,.05)}
+  nav .wrap{padding:9px 24px;display:flex;flex-wrap:wrap;gap:4px}
+  nav a{color:var(--navy2);text-decoration:none;font-size:12.8px;padding:5px 10px;border-radius:4px;white-space:nowrap}
+  nav a:hover{background:var(--tealbg);color:var(--teal)}
+
+  /* ---------- section ---------- */
+  section{margin-bottom:40px}
+  h2{font-size:19px;margin:0 0 6px;color:var(--navy);display:flex;align-items:center;gap:10px}
+  h2 .num{background:var(--navy);color:#fff;font-size:12.5px;width:26px;height:26px;border-radius:5px;
+    display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;font-weight:600}
+  .lead{color:var(--muted);font-size:13px;margin:0 0 16px;padding-left:36px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:20px;
+    box-shadow:0 1px 3px rgba(20,40,60,.04)}
+
+  /* ---------- swimlane ---------- */
+  .swim{overflow-x:auto}
+  .swim-grid{display:grid;grid-template-columns:118px repeat(6,minmax(158px,1fr));gap:6px;min-width:1120px}
+  .sw-head{background:var(--navy);color:#fff;font-size:12.5px;font-weight:600;padding:9px 8px;border-radius:5px;text-align:center}
+  .sw-head small{display:block;font-weight:400;color:#9fc0d4;font-size:11px;margin-top:2px}
+  .sw-role{background:#eef2f7;border:1px solid var(--line);border-radius:5px;padding:10px 8px;font-size:12.5px;
+    font-weight:600;color:var(--navy2);display:flex;align-items:center}
+  .sw-role small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+  .sw-cell{border:1px dashed #e3e8ef;border-radius:5px;min-height:58px;padding:8px;font-size:12px;background:#fcfdfe}
+  .sw-cell.act{border:1px solid transparent;background:var(--tealbg);color:#0b5a54;font-weight:500}
+  .sw-cell.ai{background:var(--purplebg);color:#4c1d95}
+  .sw-cell.appr{background:var(--bluebg);color:#1e3a8a}
+  .sw-cell.brief{background:var(--greenbg);color:#14532d}
+  .sw-cell.warn{background:var(--amberbg);color:#7c3f06}
+  .sw-cell .k{display:block;font-weight:600;margin-bottom:3px}
+  .sw-cell ul{margin:0;padding-left:14px}
+  .sw-cell li{margin:1px 0}
+
+  /* ---------- pipeline (info flow) ---------- */
+  .stage{display:grid;grid-template-columns:150px 1fr 44px 1fr 44px 1fr;gap:0;align-items:stretch;
+    border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden;margin-bottom:0}
+  .st-when{background:#f0f4f8;padding:14px;border-right:1px solid var(--line)}
+  .st-when .no{font-size:11px;color:var(--teal);font-weight:700;letter-spacing:.08em}
+  .st-when .nm{font-size:13.5px;font-weight:700;color:var(--navy);margin:2px 0 6px}
+  .st-when .who{font-size:11.5px;color:var(--muted)}
+  .st-when .who b{color:var(--navy2)}
+  .io{padding:13px 14px}
+  .io .lbl{font-size:10.5px;letter-spacing:.1em;font-weight:700;margin-bottom:7px;display:inline-block;
+    padding:2px 7px;border-radius:3px}
+  .io.in .lbl{background:var(--bluebg);color:#1e3a8a}
+  .io.proc{background:#fafbfd}
+  .io.proc .lbl{background:var(--purplebg);color:#4c1d95}
+  .io.out .lbl{background:var(--greenbg);color:#14532d}
+  .io ul{margin:0;padding-left:15px;font-size:12.2px}
+  .io li{margin:3px 0}
+  .arrow-col{display:flex;align-items:center;justify-content:center;color:#b9c4d1;font-size:17px;background:#fff}
+  .flow-down{text-align:center;color:#c3ccd8;font-size:15px;line-height:1;margin:5px 0}
+  code,.f{font-family:"Cascadia Mono",Consolas,"Courier New",monospace;font-size:11.6px;
+    background:#eef2f7;color:#1e3a5f;padding:1px 5px;border-radius:3px;white-space:nowrap}
+  .f.new{background:#fde8e8;color:#9b1c1c;font-weight:600}
+  .gate{margin-top:6px;padding:7px 10px;background:var(--amberbg);border-left:3px solid var(--amber);
+    border-radius:0 4px 4px 0;font-size:12px;color:#7c3f06}
+  .gate b{color:var(--amber)}
+
+  /* ---------- state machine ---------- */
+  .chain{display:flex;flex-wrap:wrap;align-items:center;gap:0;margin:8px 0 4px}
+  .node{border:1.5px solid var(--navy2);color:var(--navy2);background:#fff;border-radius:5px;
+    padding:7px 11px;font-size:12.3px;font-weight:600;white-space:nowrap}
+  .node small{display:block;font-weight:400;font-size:10.5px;color:var(--muted)}
+  .node.start{border-color:var(--muted);color:var(--muted)}
+  .node.wait{border-color:var(--amber);background:var(--amberbg);color:#7c3f06}
+  .node.ai{border-color:var(--purple);background:var(--purplebg);color:#4c1d95}
+  .node.appr{border-color:var(--blue);background:var(--bluebg);color:#1e3a8a}
+  .node.ok{border-color:var(--green);background:var(--greenbg);color:#14532d}
+  .node.end{border-color:var(--teal);background:var(--tealbg);color:#0b5a54}
+  .node.ins{border-color:var(--red);background:var(--redbg);color:#8f1414;border-style:dashed}
+  .ar{color:#9fb0c0;padding:0 7px;font-size:14px;flex:0 0 auto}
+  .chain-lbl{font-size:12px;font-weight:700;color:var(--navy);background:#eef2f7;padding:4px 9px;
+    border-radius:4px;margin-right:10px;white-space:nowrap}
+  .back{font-size:11.8px;color:var(--red);padding-left:6px;margin-top:2px}
+
+  /* ---------- single source ---------- */
+  .ss{display:flex;flex-wrap:wrap;align-items:stretch;gap:0}
+  .ss-box{flex:1 1 190px;min-width:180px;border:1px solid var(--line);border-radius:7px;padding:12px;background:#fff}
+  .ss-box .t{font-size:12.8px;font-weight:700;margin-bottom:5px;color:var(--navy)}
+  .ss-box .d{font-size:11.8px;color:var(--muted)}
+  .ss-box.p1{background:var(--purplebg);border-color:#d7c9f8}
+  .ss-box.p2{background:var(--amberbg);border-color:#f2ddb8}
+  .ss-box.p3{background:var(--tealbg);border-color:#bfe0dc}
+  .ss-ar{display:flex;align-items:center;justify-content:center;color:#9fb0c0;font-size:19px;padding:0 8px;flex:0 0 auto}
+  .fan{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}
+  .fan-box{border:1px solid var(--line);border-left:4px solid var(--green);border-radius:0 6px 6px 0;
+    padding:11px 13px;background:var(--greenbg)}
+  .fan-box .t{font-weight:700;font-size:12.8px;color:#14532d;margin-bottom:4px}
+  .fan-box .d{font-size:11.8px;color:#2f6b46}
+  .no-repeat{margin-top:14px;padding:11px 14px;background:var(--redbg);border-left:4px solid var(--red);
+    border-radius:0 6px 6px 0;font-size:12.5px;color:#8f1414}
+
+  /* ---------- table ---------- */
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff}
+  th{background:#eef2f7;color:var(--navy);text-align:left;padding:9px 10px;border:1px solid var(--line);
+    font-weight:600;font-size:12px;white-space:nowrap}
+  td{padding:8px 10px;border:1px solid var(--line);vertical-align:top}
+  tbody tr:nth-child(even){background:#fbfcfe}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600}
+  .tag.new{background:var(--redbg);color:var(--red)}
+  .tag.have{background:var(--greenbg);color:var(--green)}
+  .tag.part{background:var(--amberbg);color:var(--amber)}
+  .tbl-scroll{overflow-x:auto}
+
+  /* ---------- roadmap ---------- */
+  .rm{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+  .rm-card{border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
+  .rm-card .hd{padding:10px 13px;color:#fff;font-size:13px;font-weight:700;display:flex;justify-content:space-between}
+  .rm-card .hd small{font-weight:400;opacity:.85}
+  .rm-card.p0 .hd{background:var(--navy)}
+  .rm-card.p1 .hd{background:var(--teal)}
+  .rm-card.p2 .hd{background:var(--blue)}
+  .rm-card.p3 .hd{background:var(--muted)}
+  .rm-card ul{margin:0;padding:11px 13px 13px 30px;font-size:12.3px}
+  .rm-card li{margin:5px 0}
+  .rm-card .goal{padding:9px 13px;background:#f7f9fb;border-top:1px solid var(--line);font-size:11.8px;color:var(--muted)}
+
+  /* ---------- misc ---------- */
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:11.8px;color:var(--muted);margin-top:12px}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .note{font-size:12.3px;color:var(--muted);margin-top:11px;padding-left:2px}
+  .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+  .kpi-box{background:#fff;border:1px solid var(--line);border-top:3px solid var(--teal);border-radius:6px;padding:13px}
+  .kpi-box .v{font-size:22px;font-weight:700;color:var(--navy)}
+  .kpi-box .l{font-size:11.8px;color:var(--muted);margin-top:2px}
+  footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:12px}
+
+  @media print{
+    body{background:#fff} nav{display:none} header{background:var(--navy)!important}
+    section{break-inside:avoid} .card{box-shadow:none}
+  }
+  @media (max-width:900px){
+    .stage{grid-template-columns:1fr}
+    .arrow-col{display:none}
+    .st-when{border-right:none;border-bottom:1px solid var(--line)}
+    .io{border-bottom:1px solid var(--line)}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="h-tag">SENIOR PM · 整体规划 v1.2</span>
+    <h1>作业票申请流程改造 —— 整体规划</h1>
+    <div class="sub">流程化 · 图形化 · 全链信息流（输入 → 处理 → 输出）　|　编制：高级项目经理　|　日期：2026-08-28　|　当前状态：规划已闭环，未改动代码</div>
+    <div class="badges">
+      <span class="badge">口径①　AI 分析总次数上限 <b>3 次</b>（人工修订不限次）</span>
+      <span class="badge">口径②　AI 产出 <b>保持专业性</b>（术语 + 可执行动作/参数）</span>
+      <span class="badge">口径③　不挂靠审批链终点 <b>工程部经理</b></span>
+      <span class="badge">口径④　危害识别 <b>单一数据流</b>，人工只确认一次</span>
+      <span class="badge">口径⑤　<b>不引入整体风险等级</b>，仅 JSA 对步骤定级（高/中/低）</span>
+    </div>
+  </div>
+</header>
+
+<nav>
+  <div class="wrap">
+    <a href="#s1">1 目标与全景</a>
+    <a href="#s2">2 泳道流程图</a>
+    <a href="#s3">3 信息流（输入/输出）</a>
+    <a href="#s4">4 危害识别单一数据流</a>
+    <a href="#s5">5 状态机与审批链</a>
+    <a href="#s6">6 JSA 次数与产出规则</a>
+    <a href="#s7">7 数据字段落点</a>
+    <a href="#s8">8 风险控制点 C1–C8</a>
+    <a href="#s9">9 实施路线图</a>
+    <a href="#s10">10 决策台账</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- ================= 1 ================= -->
+<section id="s1">
+  <h2><span class="num">1</span>规划目标与一句话全景</h2>
+  <p class="lead">JSA 的目的决定了整条链路的设计：产出一份"风险 + 控制措施"告知书，固化进作业票并打印，交到现场作业人员手中。</p>
+
+  <div class="kpi">
+    <div class="kpi-box"><div class="v">6</div><div class="l">流程阶段（申请→交底）</div></div>
+    <div class="kpi-box"><div class="v">1</div><div class="l">危害识别人工录入次数</div></div>
+    <div class="kpi-box"><div class="v">3</div><div class="l">AI 分析次数上限</div></div>
+    <div class="kpi-box"><div class="v">8</div><div class="l">风险控制硬指标 C1–C8</div></div>
+    <div class="kpi-box"><div class="v">13</div><div class="l">开发任务（P0–P3）</div></div>
+  </div>
+
+  <div class="card">
+    <div class="ss">
+      <div class="ss-box"><div class="t">① 内部填基本信息</div><div class="d">公司员工确定作业对象、地点、承包商及负责人邮箱</div></div>
+      <div class="ss-ar">▶</div>
+      <div class="ss-box p2"><div class="t">② 邮件 + 二维码邀请</div><div class="d">限时免登陆链接双通道送达承包商</div></div>
+      <div class="ss-ar">▶</div>
+      <div class="ss-box p1"><div class="t">③ 承包商填写 + AI JSA</div><div class="d">作业内容/方案 → AI 生成 JSA → 自动派生风险清单 → 一次确认</div></div>
+      <div class="ss-ar">▶</div>
+      <div class="ss-box"><div class="t">④ 公司复核提交</div><div class="d">生成审批链快照</div></div>
+      <div class="ss-ar">▶</div>
+      <div class="ss-box"><div class="t">⑤ 审批会签</div><div class="d">为"将打印的告知书"背书</div></div>
+      <div class="ss-ar">▶</div>
+      <div class="ss-box p3"><div class="t">⑥ 交底与执行</div><div class="d">引用终版逐条确认签字</div></div>
+    </div>
+    <div class="note"><b>核心命题：</b>分析（产出告知书）→ 审批（为告知书背书）→ 交底（让告知书被读懂并留证），三者不是独立动作，而是同一份数据的三次呈现。</div>
+  </div>
+
+  <div class="card" style="margin-top:18px">
+    <h2 style="margin-top:0"><span class="num">★</span>核心实体说明：作业申请单（数字化）</h2>
+    <p class="lead" style="padding-left:0">本流程围绕的唯一入口实体，即原纸质体系表单 <code>FOR001</code> 的电子化载体。</p>
+    <div class="ss">
+      <div class="ss-box"><div class="t">定位</div><div class="d">所有作业的统一入口。原纸质 <code>FOR001</code> 作业申请单；电子化后以系统电子票号（<code>SQ-/GWP-/HWP-</code>）<b>唯一标识，不再使用 FOR001 纸质编号</b></div></div>
+      <div class="ss-box p2"><div class="t">承载内容</div><div class="d">① 内部填基本信息（作业对象/地点/承包商/负责人邮箱）② 承包商免登陆补充作业内容·方案·危险票 ③ 一次确认的 JSA 与风险清单 ④ 审批链与交底</div></div>
+      <div class="ss-box p3"><div class="t">与作业票关系</div><div class="d">常规作业：申请单本身即作业票（<code>draft</code>＝申请，<code>approved</code>＝票）；危险作业：申请单下可挂靠对应危险作业票，各自走审批链</div></div>
+    </div>
+    <div class="note"><b>说明：</b>FOR001 仅作为"纸质表单 → 电子数据"的演进溯源标注；其在打印文件与流程中均不再以编号呈现，由电子票号取代。后续如需纸质体系编号，由使用方自行补录。</div>
+  </div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section id="s2">
+  <h2><span class="num">2</span>角色泳道流程图（谁在什么时候做什么）</h2>
+  <p class="lead">横轴＝6 个阶段；纵轴＝5 类角色。有色格＝该角色在该阶段有动作，空白虚线格＝无动作。</p>
+
+  <div class="card swim">
+    <div class="swim-grid">
+      <div class="sw-head" style="background:#0f2438">角色 \ 阶段</div>
+      <div class="sw-head">阶段 1<small>内部填基本信息</small></div>
+      <div class="sw-head">阶段 2<small>生成邀请</small></div>
+      <div class="sw-head">阶段 3<small>承包商填写 + AI JSA</small></div>
+      <div class="sw-head">阶段 4<small>公司复核提交</small></div>
+      <div class="sw-head">阶段 5<small>审批会签</small></div>
+      <div class="sw-head">阶段 6<small>安全交底</small></div>
+
+      <!-- 申请人 -->
+      <div class="sw-role">申请人<small>公司员工 A</small></div>
+      <div class="sw-cell act"><span class="k">新建作业申请单</span>填作业名称/区域/地点/承包商<br>+ <span class="f new">contractorEmail</span></div>
+      <div class="sw-cell act"><span class="k">点击"发送邀请"</span>生成限时令牌 → 邮件 + 二维码<br>可复制链接微信发送</div>
+      <div class="sw-cell">（等待承包商填写，可查看进度、重发/续期令牌）</div>
+      <div class="sw-cell act"><span class="k">复核并提交审批</span>不合格可退回阶段 3 重填</div>
+      <div class="sw-cell">（可查看审批进度）</div>
+      <div class="sw-cell">（知情）</div>
+
+      <!-- 承包商 -->
+      <div class="sw-role">承包商<small>负责人 CH / 作业人员 CW</small></div>
+      <div class="sw-cell">—</div>
+      <div class="sw-cell warn"><span class="k">收到邀请</span>邮件链接 或 微信二维码<br>有效期 72h</div>
+      <div class="sw-cell act"><span class="k">免登陆填写（核心）</span>
+        <ul>
+          <li>只读查看基本信息</li>
+          <li>填作业内容 / 上传施工方案</li>
+          <li>触发 AI JSA（≤3 次）</li>
+          <li><b>一次确认</b>风险清单</li>
+          <li>危险票：时间/人员/监护/证书</li>
+        </ul></div>
+      <div class="sw-cell warn">（被退回时重新修订并再次提交）</div>
+      <div class="sw-cell">—</div>
+      <div class="sw-cell brief">现场接受交底并签字</div>
+
+      <!-- AI -->
+      <div class="sw-role">AI 引擎<small>系统自动</small></div>
+      <div class="sw-cell">—</div>
+      <div class="sw-cell">—</div>
+      <div class="sw-cell ai"><span class="k">两步自动产出</span>
+        <ul>
+          <li><code>analyzeJsa</code> 生成步骤级 JSA</li>
+          <li><code>analyzeBriefingHazards</code> 汇总去重 + 模板补漏 → <span class="f new">riskHazards</span></li>
+        </ul></div>
+      <div class="sw-cell ai">提交后 AI 复核提示<br><code>reviewWorkPermitAfterSubmit</code></div>
+      <div class="sw-cell ai">风险等级建议<br><code>analyzeWorkPermitRisk</code></div>
+      <div class="sw-cell ai">交底要点由终版派生<br>（不重新识别危害）</div>
+
+      <!-- 审批人 -->
+      <div class="sw-role">审批人<small>D / AR / E / M</small></div>
+      <div class="sw-cell">—</div>
+      <div class="sw-cell">—</div>
+      <div class="sw-cell">—</div>
+      <div class="sw-cell">（收到待办）</div>
+      <div class="sw-cell appr"><span class="k">按链逐级会签</span>
+        <ul>
+          <li>视图 = 打印件内容</li>
+          <li>仅见 <code>checked=true</code></li>
+          <li>风险不足 → 退回重分析</li>
+        </ul></div>
+      <div class="sw-cell appr">EHS 把关交底质量</div>
+
+      <!-- 交底人 -->
+      <div class="sw-role">交底人<small>陪同人员 B / 监护 G</small></div>
+      <div class="sw-cell">—</div>
+      <div class="sw-cell">—</div>
+      <div class="sw-cell">—</div>
+      <div class="sw-cell">—</div>
+      <div class="sw-cell">（准备交底材料）</div>
+      <div class="sw-cell brief"><span class="k">现场交底</span>逐条念读勾选 + 拍照 + 收签字<br>全勾选后 <code>status=done</code></div>
+    </div>
+
+    <div class="legend">
+      <span><i style="background:var(--tealbg);border:1px solid #bfe0dc"></i>人工操作</span>
+      <span><i style="background:var(--purplebg);border:1px solid #d7c9f8"></i>AI 自动</span>
+      <span><i style="background:var(--bluebg);border:1px solid #c7d7fb"></i>审批</span>
+      <span><i style="background:var(--greenbg);border:1px solid #c5e6d2"></i>交底/现场</span>
+      <span><i style="background:var(--amberbg);border:1px solid #f2ddb8"></i>等待/退回</span>
+      <span><i style="background:#fcfdfe;border:1px dashed #d5dce5"></i>无动作</span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 3 ================= -->
+<section id="s3">
+  <h2><span class="num">3</span>全链信息流：每阶段的输入 → 处理 → 输出</h2>
+  <p class="lead">所有数据均落到真实表字段。<span class="f">A 表</span>=work_permit_applications　<span class="f">W 表</span>=work_permits　<span class="f">B 表</span>=safety_briefings　<span class="f">T 表</span>=action_tokens。<span class="f new">红色</span>＝本次需新增字段。</p>
+
+  <!-- 阶段1 -->
+  <div class="stage">
+    <div class="st-when">
+      <div class="no">STAGE 01</div>
+      <div class="nm">内部填基本信息</div>
+      <div class="who">时机：发起作业前<br>责任：<b>申请人 A</b><br>状态：<code>draft</code></div>
+    </div>
+    <div class="io in"><span class="lbl">INPUT 输入</span>
+      <ul>
+        <li>作业需求（口头/工单）</li>
+        <li>承包商库选择 <span class="f">contractors</span></li>
+        <li>区域/楼层字典</li>
+      </ul></div>
+    <div class="arrow-col">▶</div>
+    <div class="io proc"><span class="lbl">PROCESS 处理</span>
+      <ul>
+        <li>新建作业申请单</li>
+        <li>判定 <code>involvesHazardous</code> / <code>permitType</code></li>
+        <li>危险票挂靠时选常规票 <code>linkedRoutineId</code></li>
+        <li>仅落库，不触发下游</li>
+      </ul></div>
+    <div class="arrow-col">▶</div>
+    <div class="io out"><span class="lbl">OUTPUT 输出（写 A 表）</span>
+      <ul>
+        <li><code>jobName, department, building, floor, area, location</code></li>
+        <li><code>planStart, planEnd, type, hazardTypeList</code></li>
+        <li><code>contractorUnit, contractorHead, contractorPhone</code></li>
+        <li><span class="f new">contractorEmail</span>（新增，必填）</li>
+      </ul>
+      <div class="gate"><b>退出准则：</b>作业名称/区域/地点/承包商单位/负责人/电话/<b>邮箱</b>非空，且作业类型已定。</div>
+    </div>
+  </div>
+  <div class="flow-down">▼</div>
+
+  <!-- 阶段2 -->
+  <div class="stage">
+    <div class="st-when">
+      <div class="no">STAGE 02</div>
+      <div class="nm">生成邀请（邮件 + 二维码）</div>
+      <div class="who">时机：阶段 1 完成后<br>责任：<b>申请人 A</b><br>状态：<code>awaiting_contractor</code></div>
+    </div>
+    <div class="io in"><span class="lbl">INPUT 输入</span>
+      <ul>
+        <li>A 表基本信息（阶段 1 输出）</li>
+        <li><span class="f new">contractorEmail</span></li>
+        <li>SMTP 配置 <code>systemConfig(email_config)</code></li>
+      </ul></div>
+    <div class="arrow-col">▶</div>
+    <div class="io proc"><span class="lbl">PROCESS 处理</span>
+      <ul>
+        <li>写 T 表：<code>purpose='contractor_fill'</code>（危险票 <code>'worker_fill'</code>）、<code>expiresAt=now+72h</code></li>
+        <li>生成公开链接 <code>/public/contractor-fill?token=…</code></li>
+        <li>渲染二维码，<b>卡片下方标注作业名称 + 计划日期</b></li>
+        <li>SMTP 已配 → 发信；未配 → <code>emailSkipped=true</code> 降级</li>
+      </ul></div>
+    <div class="arrow-col">▶</div>
+    <div class="io out"><span class="lbl">OUTPUT 输出</span>
+      <ul>
+        <li>限时令牌记录（T 表）</li>
+        <li>可复制链接 + 可下载二维码图片</li>
+        <li>邮件（或降级提示）</li>
+        <li>A 表状态 → <code>awaiting_contractor</code></li>
+      </ul>
+      <div class="gate"><b>退出准则：</b>令牌生成且未过期；二维码可下载/复制；邮件已发或已给出降级提示（<b>不阻塞流程</b>）。</div>
+    </div>
+  </div>
+  <div class="flow-down">▼</div>
+
+  <!-- 阶段3 -->
+  <div class="stage" style="border-color:#c9b8f2;border-width:2px">
+    <div class="st-when" style="background:var(--purplebg)">
+      <div class="no" style="color:var(--purple)">STAGE 03 · 核心</div>
+      <div class="nm">承包商免登陆填写 + AI JSA</div>
+      <div class="who">时机：承包商点链接/扫码<br>责任：<b>CH / CW（无需登录）</b><br>状态：→ <code>contractor_submitted</code></div>
+    </div>
+    <div class="io in"><span class="lbl">INPUT 输入</span>
+      <ul>
+        <li>令牌校验（有效期/是否已用）</li>
+        <li>A 表基本信息（<b>只读</b>，不可改）</li>
+        <li>承包商填：作业内容、施工方案文件</li>
+        <li>危险票另填：施工时间、作业人员、监护人、人员证书</li>
+        <li>措施模板库 <code>measure_templates</code>（74 条）</li>
+      </ul></div>
+    <div class="arrow-col">▶</div>
+    <div class="io proc"><span class="lbl">PROCESS 处理</span>
+      <ul>
+        <li><b>①</b> <code>ai.analyzeJsa</code> 生成步骤级 JSA（<b>每步含风险定级：高/中/低</b>；仅做步骤级定级，<b>不评整体作业风险等级</b>）</li>
+        <li><b>②</b> 人工增删修订（<b>不限次数</b>）</li>
+        <li><b>③</b> 可再分析（<b>AI 累计 ≤3 次</b>，以修订版为上下文续写）</li>
+        <li><b>④</b> <code>ai.analyzeBriefingHazards</code> 自动派生风险清单＝JSA 汇总去重 ∪ 模板按类型补漏</li>
+        <li><b>⑤</b> 承包商<b>仅做增删/勾选确认</b>（唯一人工录入）</li>
+      </ul></div>
+    <div class="arrow-col">▶</div>
+    <div class="io out"><span class="lbl">OUTPUT 输出（写 A 表）</span>
+      <ul>
+        <li><code>content</code> 作业内容 + 施工方案附件（files）</li>
+        <li><code>jsas</code> = <code>[{step,hazard,control,risk}]</code></li>
+        <li><span class="f new">riskHazards</span> = <code>[{hazard,consequence,measures[],checked}]</code></li>
+        <li><span class="f new">jsaAnalysisCount</span> / <span class="f new">jsaModifiedRound</span>（审计）</li>
+        <li>危险票：<code>startTime,endTime,operatorNames,supervisorName</code> + 证书</li>
+      </ul>
+      <div class="gate"><b>退出准则：</b><code>jsas</code> 每步 hazard/control 非空；<code>riskHazards</code> 至少 1 项 <code>checked=true</code>；危险票时间/人员/证书齐备。</div>
+    </div>
+  </div>
+  <div class="flow-down">▼</div>
+
+  <!-- 阶段4 -->
+  <div class="stage">
+    <div class="st-when">
+      <div class="no">STAGE 04</div>
+      <div class="nm">公司复核 + 提交审批</div>
+      <div class="who">时机：承包商提交后<br>责任：<b>申请人 A</b><br>状态：→ <code>pending_review</code></div>
+    </div>
+    <div class="io in"><span class="lbl">INPUT 输入</span>
+      <ul>
+        <li>阶段 3 全部产出</li>
+        <li>AI 复核提示（可选）</li>
+        <li>是否挂靠常规票 <code>linkedRoutineId</code>（决定审批链分支，<b>不再依赖整体风险等级</b>）</li>
+      </ul></div>
+    <div class="arrow-col">▶</div>
+    <div class="io proc"><span class="lbl">PROCESS 处理</span>
+      <ul>
+        <li>员工逐项核对承包商数据</li>
+        <li>不合格 → <b>退回阶段 3</b>（次数不重置）</li>
+        <li>合格 → 按<b>挂靠 / 不挂靠</b>分支（危险票）生成审批链快照；常规票直接提交</li>
+      </ul></div>
+    <div class="arrow-col">▶</div>
+    <div class="io out"><span class="lbl">OUTPUT 输出</span>
+      <ul>
+        <li><code>approvalChain</code> 快照（seq/stage/roleKey/approverId）</li>
+        <li>首节点 <code>status=pending</code>，待办推送</li>
+        <li>A 表状态 → <code>pending_review</code></li>
+      </ul>
+      <div class="gate"><b>退出准则：</b>审批链已生成且首节点待审；链路节点与"挂靠/不挂靠"规则一致。</div>
+    </div>
+  </div>
+  <div class="flow-down">▼</div>
+
+  <!-- 阶段5 -->
+  <div class="stage">
+    <div class="st-when">
+      <div class="no">STAGE 05</div>
+      <div class="nm">审批会签（为告知书背书）</div>
+      <div class="who">时机：提交后<br>责任：<b>D / AR / E / M</b><br>状态：→ <code>approved</code></div>
+    </div>
+    <div class="io in"><span class="lbl">INPUT 输入</span>
+      <ul>
+        <li><b>与打印件完全一致的告知书内容</b></li>
+        <li><code>jsas</code> + <code>riskHazards</code> 中 <b>仅 checked=true</b></li>
+        <li>承包商资质、区域特殊要求</li>
+      </ul></div>
+    <div class="arrow-col">▶</div>
+    <div class="io proc"><span class="lbl">PROCESS 处理</span>
+      <ul>
+        <li>部门主管：作业范围 / 承包商资质</li>
+        <li>区域负责人（不挂靠）：该区域特有风险</li>
+        <li>EHS 工程师：控制措施充分性</li>
+        <li>工程部经理：最终放行</li>
+        <li>风险识别不足 → <b>退回重分析</b>（分析↔审批闭环）</li>
+      </ul></div>
+    <div class="arrow-col">▶</div>
+    <div class="io out"><span class="lbl">OUTPUT 输出</span>
+      <ul>
+        <li>各节点 <code>reviewOpinion / approvedAt</code></li>
+        <li>全节点通过 → 状态 <code>approved</code></li>
+        <li>生成 W 表作业票 + <code>qrCode</code></li>
+        <li>告知书内容<b>冻结</b>为打印版本</li>
+      </ul>
+      <div class="gate"><b>退出准则：</b>审批链全节点 approved；审批人所见 = 将打印内容；改内容须重新走审批（C8）。</div>
+    </div>
+  </div>
+  <div class="flow-down">▼</div>
+
+  <!-- 阶段6 -->
+  <div class="stage">
+    <div class="st-when">
+      <div class="no">STAGE 06</div>
+      <div class="nm">安全交底 + 执行</div>
+      <div class="who">时机：批准后、执行前<br>责任：<b>交底人 B</b><br>状态：<code>printed → finished → completed</code></div>
+    </div>
+    <div class="io in"><span class="lbl">INPUT 输入</span>
+      <ul>
+        <li><b>最终确认版</b>：<code>jsas</code> + <code>riskHazards[checked]</code></li>
+        <li>作业内容与施工方案</li>
+        <li>入厂人员名单 <code>entry_registrations</code></li>
+      </ul></div>
+    <div class="arrow-col">▶</div>
+    <div class="io proc"><span class="lbl">PROCESS 处理</span>
+      <ul>
+        <li>交底要点由终版<b>自动派生</b>，<b>不重新识别危害</b></li>
+        <li>现场逐条念读 → 勾选确认</li>
+        <li>拍照 + 收承包商/监护/工人签字</li>
+      </ul></div>
+    <div class="arrow-col">▶</div>
+    <div class="io out"><span class="lbl">OUTPUT 输出（写 B 表）</span>
+      <ul>
+        <li><code>points</code> = <code>[{text,checked}]</code>（与打印件同源）</li>
+        <li><code>photos, signatures, content, briefedAt</code></li>
+        <li>全勾选 → <code>status=done</code> → 允许转执行</li>
+        <li>打印件：作业票 + 风险告知正文</li>
+      </ul>
+      <div class="gate"><b>退出准则：</b><code>points</code> 全部勾选 + 三方签字齐全；未完成交底不得转执行（C4）。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 4 ================= -->
+<section id="s4">
+  <h2><span class="num">4</span>危害识别与控制措施 —— 单一数据流（本次最关键优化）</h2>
+  <p class="lead">原需求会在 3 处重复录入同一批"危害 + 措施"。改为单向派生后，人工只在阶段 3 确认一次，下游全部引用同一份数据。</p>
+
+  <div class="card">
+    <div class="ss">
+      <div class="ss-box p1">
+        <div class="t">① AI 生成 JSA</div>
+        <div class="d"><code>analyzeJsa</code><br>产出步骤级 <code>[{step, hazard, control}]</code><br>专业术语 + 可执行动作</div>
+      </div>
+      <div class="ss-ar">▶</div>
+      <div class="ss-box p2">
+        <div class="t">② 系统自动派生风险清单</div>
+        <div class="d"><code>analyzeBriefingHazards</code><br>＝ JSA 各步 hazard/control <b>汇总去重</b><br>∪ <code>measure_templates</code> 按作业类型 <b>补漏固有风险</b><br>→ <span class="f new">riskHazards</span></div>
+      </div>
+      <div class="ss-ar">▶</div>
+      <div class="ss-box p3">
+        <div class="t">③ 承包商一次确认</div>
+        <div class="d"><b>唯一人工录入动作</b><br>看到的清单是"已填好的"，只做增删 + 勾选校对<br>而非从空白勾选</div>
+      </div>
+    </div>
+
+    <div class="flow-down" style="font-size:18px;margin:14px 0 4px">▼　同一份数据向三个下游单向流动，不再重复识别　▼</div>
+
+    <div class="fan">
+      <div class="fan-box"><div class="t">审批视图</div><div class="d">只取 <code>checked=true</code>；未勾选项永不进入下游（C3）</div></div>
+      <div class="fan-box"><div class="t">交底要点 points</div><div class="d">由终版直接派生，现场逐条勾选（C4）</div></div>
+      <div class="fan-box"><div class="t">作业票打印正文</div><div class="d">＝ 审批通过时的告知书；改内容须重走审批（C8）</div></div>
+    </div>
+
+    <div class="no-repeat">
+      <b>消除的 3 处重复：</b>① JSA 每步 hazard/control　② 独立"风险提示清单"再勾选　③ 交底 points 再识别一次 —— 三者本是同源不同粒度，现统一为"一次确认、三处呈现"。
+      <br><b>关键不变量（同源）：</b>分析产出 = 审批展示 = 交底要点 = 打印正文，四者恒等。
+    </div>
+  </div>
+</section>
+
+<!-- ================= 5 ================= -->
+<section id="s5">
+  <h2><span class="num">5</span>状态机与审批链（三条路径）</h2>
+  <p class="lead">红色虚线节点＝本次新增/变更的关键节点。</p>
+
+  <div class="card">
+    <div style="margin-bottom:20px">
+      <div class="chain">
+        <span class="chain-lbl">常规作业票<br>routine</span>
+        <span class="node start">draft<small>内部填写</small></span><span class="ar">▶</span>
+        <span class="node ins">awaiting_contractor<small>新增·已发邀请</small></span><span class="ar">▶</span>
+        <span class="node ins">contractor_submitted<small>新增·承包商已提交</small></span><span class="ar">▶</span>
+        <span class="node appr">pending_review<small>部门主管</small></span><span class="ar">▶</span>
+        <span class="node ok">approved</span><span class="ar">▶</span>
+        <span class="node end">printed<small>交底/执行</small></span><span class="ar">▶</span>
+        <span class="node end">finished</span><span class="ar">▶</span>
+        <span class="node end">completed</span>
+      </div>
+      <div class="back">◀ 退回路径：公司复核不通过 / 审批风险不足 → 退回 <code>awaiting_contractor</code> 重新分析（AI 次数不重置）</div>
+    </div>
+
+    <div style="margin-bottom:20px;padding-top:16px;border-top:1px dashed var(--line)">
+      <div class="chain">
+        <span class="chain-lbl">危险票<br><b>挂靠</b>常规票</span>
+        <span class="node wait">awaiting_worker</span><span class="ar">▶</span>
+        <span class="node ins">worker_submitted</span><span class="ar">▶</span>
+        <span class="node appr">pending_review<small>部门主管</small></span><span class="ar">▶</span>
+        <span class="node appr">ehs_reviewing<small>EHS 工程师</small></span><span class="ar">▶</span>
+        <span class="node appr">reviewing<small>工程部经理</small></span><span class="ar">▶</span>
+        <span class="node ok">approved</span>
+      </div>
+      <div class="note">3 个审批节点（原有路径不变）。前置条件：所挂靠常规票已 <code>approved</code>。</div>
+    </div>
+
+    <div style="padding-top:16px;border-top:1px dashed var(--line)">
+      <div class="chain">
+        <span class="chain-lbl">危险票<br><b>不挂靠</b>常规票</span>
+        <span class="node wait">awaiting_worker</span><span class="ar">▶</span>
+        <span class="node ins">worker_submitted</span><span class="ar">▶</span>
+        <span class="node appr">pending_review<small>部门主管</small></span><span class="ar">▶</span>
+        <span class="node ins">area_reviewing<small>区域负责人 · 新增插入</small></span><span class="ar">▶</span>
+        <span class="node appr">ehs_reviewing<small>EHS 工程师</small></span><span class="ar">▶</span>
+        <span class="node appr">reviewing<small>工程部经理</small></span><span class="ar">▶</span>
+        <span class="node ok">approved</span>
+      </div>
+      <div class="note"><b>4 个审批节点。</b>已确认口径：不挂靠时在"部门主管"与"EHS 工程师"之间<b>增插一道区域负责人</b>，走的仍是现有 EHS 审批路径，<b>终点同为工程部经理</b>。字段 <code>areaApproverId</code> 已存在，仅需调整路由分支。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 6 ================= -->
+<section id="s6">
+  <h2><span class="num">6</span>AI 分析次数与产出规则（口径①②落地）</h2>
+
+  <div class="card">
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th style="width:120px">规则</th><th style="width:210px">口径（已确认）</th><th>实现要点</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>AI 次数上限</b></td>
+            <td><b>AI 分析总次数 ≤ 3</b><br>（首次 + 至多 2 次再分析）</td>
+            <td><span class="f new">jsaAnalysisCount</span> 每次调用 AI +1；达 3 后前端置灰 + <b>后端强校验拦截</b>；提示"AI 分析次数已用完（3/3），可继续手工完善后提交"</td>
+          </tr>
+          <tr>
+            <td><b>人工修订</b></td>
+            <td><b>不限次数</b>，不消耗 AI 次数</td>
+            <td>增删步骤、改写 hazard/control 自由；<span class="f new">jsaModifiedRound</span> 仅作审计记录，不设限</td>
+          </tr>
+          <tr>
+            <td><b>计数范围</b></td>
+            <td>按<b>单张申请单</b>累计，退回重填<b>不重置</b></td>
+            <td>防止通过"退回—重填"绕过上限；计数随 A 表持久化</td>
+          </tr>
+          <tr>
+            <td><b>再分析语义</b></td>
+            <td>续写完善，<b>非推倒重来</b></td>
+            <td>把承包商当前手工修订版 <code>jsas</code> 作为上下文喂给 AI，要求"补全缺失风险、修正不可行措施"，保留人工已确认内容</td>
+          </tr>
+          <tr>
+            <td><b>风险定级口径</b></td>
+            <td><b>仅 JSA 步骤级定级</b>（高/中/低），<b>不引入整体作业风险等级</b></td>
+            <td>风险只绑定到 JSA 的"步骤"，打印与审批均只呈现步骤级风险；<code>riskLevel</code>（整体等级）不进入流程与打印（C 校验收口）</td>
+          </tr>
+          <tr>
+            <td><b>产出语言风格</b></td>
+            <td><b>保持专业性</b>，禁止口语化降级</td>
+            <td>使用规范安全术语（能量隔离、动火监护、气体检测、受限空间准入等），措辞为可核查的祈使句，<b>术语后附具体执行动作与量化参数</b></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:16px">
+      <div style="border:1px solid #c5e6d2;background:var(--greenbg);border-radius:6px;padding:12px">
+        <div style="font-weight:700;color:#14532d;font-size:12.8px;margin-bottom:6px">✓ 正例（专业 + 可执行）</div>
+        <div style="font-size:12.2px;color:#2f6b46">
+          「<b>能量隔离</b>：断电、挂牌上锁（LOTO），并用万用表验电确认零能量」<br>
+          「<b>受限空间准入</b>：作业前及作业中每 2h 检测 O₂ 19.5–23.5%、LEL &lt;10%、H₂S &lt;10ppm，全程留守监护人」
+        </div>
+      </div>
+      <div style="border:1px solid #f5c6c6;background:var(--redbg);border-radius:6px;padding:12px">
+        <div style="font-weight:700;color:#8f1414;font-size:12.8px;margin-bottom:6px">✗ 反例（两类均禁止）</div>
+        <div style="font-size:12.2px;color:#8f1414">
+          过度口语化：「把电关了再干」——缺乏专业性与可核查性<br>
+          纯术语无动作：「执行能量隔离」——现场无法照做、无法检查
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 7 ================= -->
+<section id="s7">
+  <h2><span class="num">7</span>数据字段落点与能力现状盘点</h2>
+  <p class="lead">底座大多已具备，本次以"编排 + 补齐"为主，非从零建设。</p>
+
+  <div class="card tbl-scroll">
+    <table>
+      <thead><tr><th style="width:150px">能力 / 数据</th><th style="width:90px">现状</th><th style="width:290px">位置 / 字段</th><th>本次动作</th></tr></thead>
+      <tbody>
+        <tr><td>AI JSA 分析</td><td><span class="tag have">已具备</span></td><td><code>ai.service.analyzeJsa</code>（deepseek/openai/offline）</td><td>调整提示词口径（专业+可执行）、加次数校验</td></tr>
+        <tr><td>AI 危害识别</td><td><span class="tag have">已具备</span></td><td><code>analyzeBriefingHazards</code></td><td>改为 JSA 派生入口，汇总去重 + 模板补漏</td></tr>
+        <tr><td>免登陆访问</td><td><span class="tag have">已具备</span></td><td><code>public-actions</code> + <code>action_tokens</code>(purpose/expiresAt/usedAt/multi)</td><td>新增 2 类 purpose 与 2 个公开路由</td></tr>
+        <tr><td>二维码</td><td><span class="tag have">已具备</span></td><td><code>qr-codes</code> 模块、<code>qrCode/entryQrToken</code></td><td>卡片下方增作业名称 + 日期标注</td></tr>
+        <tr><td>邮件发送</td><td><span class="tag part">半具备</span></td><td><code>email.service</code>（nodemailer）；SMTP 未配置</td><td>加邀请模板 + 未配置降级 <code>emailSkipped</code></td></tr>
+        <tr><td>文件上传</td><td><span class="tag have">已具备</span></td><td><code>files</code> 模块</td><td>复用（施工方案、人员证书）</td></tr>
+        <tr><td>措施模板库</td><td><span class="tag have">已具备</span></td><td><code>measure_templates</code>（74 条）</td><td>作为固有风险补漏源</td></tr>
+        <tr><td>审批链</td><td><span class="tag have">已具备</span></td><td><code>approvalChain</code>、<code>linkedRoutineId</code>、<code>areaApproverId</code></td><td>按挂靠/不挂靠分支生成（<b>不依赖整体风险等级</b>）</td></tr>
+        <tr><td>危险票挂靠</td><td><span class="tag have">已具备</span></td><td><code>linkedRoutineId / linkedRoutineNo</code></td><td>作为审批链分支判据</td></tr>
+        <tr><td>交底</td><td><span class="tag have">已具备</span></td><td><code>safety_briefings</code>(points/aiDraft/status)</td><td>推荐源改为终版（不重识别）</td></tr>
+        <tr><td>承包商负责人邮箱</td><td><span class="tag new">需新增</span></td><td><code>contractors.email</code>、A 表 <span class="f new">contractorEmail</span></td><td>建字段 + 申请页输入校验</td></tr>
+        <tr><td>风险清单</td><td><span class="tag new">需新增</span></td><td>A 表 <span class="f new">riskHazards</span> <code>[{hazard,consequence,measures[],checked}]</code></td><td>建字段（JSONB），派生写入</td></tr>
+        <tr><td>AI 次数 / 修订轮次</td><td><span class="tag new">需新增</span></td><td>A 表 <span class="f new">jsaAnalysisCount</span>、<span class="f new">jsaModifiedRound</span></td><td>建字段 + 后端强校验</td></tr>
+        <tr><td>填写令牌</td><td><span class="tag part">复用为主</span></td><td><code>action_tokens</code>（可选冗余 <span class="f new">contractorFillToken</span>）</td><td>优先复用 T 表，避免冗余</td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>结论：</b>13 项能力中 <b>9 项可直接复用</b>、2 项半具备（邮件/令牌）、<b>仅 3 组字段需新增</b>。改造风险集中在流程编排与前端公开页，而非底层能力缺失。</div>
+  </div>
+</section>
+
+<!-- ================= 8 ================= -->
+<section id="s8">
+  <h2><span class="num">8</span>风险控制有效性硬指标 C1–C8</h2>
+  <p class="lead">这 8 条同时是验收标准。它们保证"系统更合理、风险控制更有效"是可度量的，而非主观判断。</p>
+
+  <div class="card tbl-scroll">
+    <table>
+      <thead><tr><th style="width:52px">编号</th><th style="width:140px">控制点</th><th>机制</th><th style="width:110px">落点阶段</th></tr></thead>
+      <tbody>
+        <tr><td><b>C1</b></td><td>完整性门禁</td><td>提交前校验 <code>jsas</code> 每步 hazard/control 非空、<code>riskHazards</code> 至少 1 项 checked</td><td>阶段 3</td></tr>
+        <tr><td><b>C2</b></td><td>AI 固有风险兜底</td><td><code>measure_templates</code> 按作业类型自动补"动火必有火灾""受限空间必有缺氧"等固有风险，防 AI 漏项</td><td>阶段 3（派生）</td></tr>
+        <tr><td><b>C3</b></td><td>未确认不入流程</td><td>审批与交底均只取 <code>checked=true</code>，未勾选项永不进入下游</td><td>阶段 5 / 6</td></tr>
+        <tr><td><b>C4</b></td><td>交底必须引用终版</td><td><code>points</code> 由最终确认版派生；未全部勾选不许 <code>done</code>、不许转执行</td><td>阶段 6</td></tr>
+        <tr><td><b>C5</b></td><td>审计留痕</td><td>记录 AI 次数、修订轮次、确认人、时间；<code>action_tokens.usedAt/usedBy</code> 留痕免登陆操作</td><td>全链</td></tr>
+        <tr><td><b>C6</b></td><td>限时可控</td><td>邀请令牌 72h 过期，过期需员工重发；可续期一次</td><td>阶段 2</td></tr>
+        <tr><td><b>C7</b></td><td>双通道可达</td><td>邮件未配置时降级为"复制链接 + 二维码"，流程不阻塞</td><td>阶段 2</td></tr>
+        <tr><td><b>C8</b></td><td>打印一致</td><td>打印件 = 审批通过时的告知书（<code>jsas</code> + <code>riskHazards[checked]</code>）；改内容须重新走审批</td><td>阶段 5 / 6</td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>三个关键不变量：</b>① <b>同源</b>——分析 = 审批 = 交底 = 打印；② <b>专业且可执行</b>——术语规范且附具体动作/参数；③ <b>闭环</b>——审批不过退回分析、交底不完不转执行。</div>
+  </div>
+</section>
+
+<!-- ================= 9 ================= -->
+<section id="s9">
+  <h2><span class="num">9</span>实施路线图（P0 → P3，13 个任务）</h2>
+  <p class="lead">每任务 30–60 分钟可完成、带验收标准；每轮交付一个可点击演示的增量，预计 2–3 轮修订收敛。</p>
+
+  <div class="rm">
+    <div class="rm-card p0">
+      <div class="hd"><span>P0 · 基础数据与服务</span><small>≈3 天</small></div>
+      <ul>
+        <li><b>P0-1</b> 承包商邮箱字段（两表 + 申请页校验）</li>
+        <li><b>P0-2</b> 邀请令牌（72h）与二维码（下方标注作业名称 + 日期）</li>
+        <li><b>P0-3</b> 邮件邀请模板 + 未配置降级</li>
+      </ul>
+      <div class="goal">出口：能对一张 draft 票生成可用邀请（链接 + 二维码），邮件可发或已降级。</div>
+    </div>
+
+    <div class="rm-card p1">
+      <div class="hd"><span>P1 · 常规票承包商协同</span><small>≈5 天</small></div>
+      <ul>
+        <li><b>P1-1</b> 免登陆填写公开页（只读信息 + 内容 + 方案上传）</li>
+        <li><b>P1-2</b> AI JSA + 次数上限 3（前端置灰 + 后端拦截）</li>
+        <li><b>P1-3</b> 风险清单自动派生 + 一次确认</li>
+        <li><b>P1-4</b> 提交进审批 + 交底引用终版</li>
+      </ul>
+      <div class="goal">出口：一张常规票可由承包商全程免登陆完成填写并走到批准 + 交底。</div>
+    </div>
+
+    <div class="rm-card p2">
+      <div class="hd"><span>P2 · 危险票与双审批链</span><small>≈3 天</small></div>
+      <ul>
+        <li><b>P2-1</b> 作业人员填写页（时间/人员/监护/证书/内容/JSA）</li>
+        <li><b>P2-2</b> 挂靠 3 节点 / 不挂靠 4 节点审批链分支</li>
+      </ul>
+      <div class="goal">出口：危险票挂靠与不挂靠两条链均能按序会签至工程部经理批准。</div>
+    </div>
+
+    <div class="rm-card p3">
+      <div class="hd"><span>P3 · 增强（可选）</span><small>按需</small></div>
+      <ul>
+        <li><b>P3-1</b> 作业人员同步入厂名单 <code>entry_registrations</code></li>
+        <li><b>P3-2</b> JSA 分析审计留痕页（谁、几次、何时）</li>
+        <li><b>P3-3</b> 短信验证码增强（需短信服务）</li>
+      </ul>
+      <div class="goal">出口：安全性与可追溯性增强，不影响主流程可用性。</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div style="font-weight:700;color:var(--navy);margin-bottom:8px;font-size:13px">阶段门禁（Stage-Gate）—— 不满足不得进入下一轮</div>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th style="width:70px">门</th><th>放行条件</th></tr></thead>
+        <tbody>
+          <tr><td><b>G0→G1</b></td><td>令牌可生成且过期即拒；二维码可下载；邮件未配置时流程不阻塞</td></tr>
+          <tr><td><b>G1→G2</b></td><td>常规票全链走通；C1/C2/C3/C4 通过自测；第 4 次 AI 调用被后端拦截</td></tr>
+          <tr><td><b>G2→G3</b></td><td>三条路径（常规 / 危险挂靠 / 危险不挂靠）均可 draft → completed；C8 打印一致性验证通过</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 10 ================= -->
+<section id="s10">
+  <h2><span class="num">10</span>决策台账（口径已全部闭环）</h2>
+
+  <div class="card tbl-scroll">
+    <table>
+      <thead><tr><th style="width:44px">#</th><th style="width:190px">议题</th><th>最终口径</th><th style="width:100px">确认日期</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>危险票不挂靠审批链</td><td>部门主管 → 区域负责人 → EHS 工程师 → 工程部经理（<b>终点＝工程部经理</b>；走现有 EHS 路径，仅增插区域负责人）</td><td>2026-08-28</td></tr>
+        <tr><td>2</td><td>二次 AI 分析次数</td><td><b>AI 分析总次数上限 3</b>；人工修订不限次；按申请单累计、退回不重置</td><td>2026-08-28</td></tr>
+        <tr><td>3</td><td>AI 产出语言风格</td><td><b>保持专业性</b>：规范安全术语 + 附具体执行动作与量化参数；<b>禁止口语化降级</b></td><td>2026-08-28</td></tr>
+        <tr><td>4</td><td>危害识别与控制措施</td><td><b>单一数据流</b>：AI JSA → 自动派生 <code>riskHazards</code> → 人工一次确认；下游只引用不重识别</td><td>2026-08-28</td></tr>
+        <tr><td>5</td><td>JSA 的目的定位</td><td>产出<b>作业票风险告知正文</b>，打印交现场工人；分析/审批/交底三过程围绕此目的设计</td><td>2026-08-28</td></tr>
+        <tr><td>6</td><td>风险等级口径</td><td><b>不引入整体作业风险等级</b>；仅在 JSA 分析中对<b>每个步骤</b>定级（高/中/低），打印与审批均只呈现步骤级风险</td><td>2026-08-28</td></tr>
+      </tbody>
+    </table>
+    <div class="note">口径已无待确认项，可按 P0 → P3 启动实施。</div>
+  </div>
+</section>
+
+<footer>
+  配套文档：<code>docs/作业票申请流程规范.md</code>（流程治理正文 · 9 节）　|　<code>docs/作业票承包商协同改造-tasklist.md</code>（13 个开发任务 · 含验收标准）
+  <br>本规划为治理交付物，<b>未改动任何业务代码</b>。
+</footer>
+
+</div>
+</body>
+</html>

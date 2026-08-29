@@ -1,0 +1,112 @@
+/** @type {import('tailwindcss').Config} */
+const v = (name) => `hsl(var(--${name}) / <alpha-value>)`;
+
+export default {
+  content: ['./index.html', './src/**/*.{ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        // 全部语义令牌映射到 CSS 通道变量，运行时换肤即时生效
+        background: v('background'),
+        foreground: v('foreground'),
+        card: 'var(--card-bg)',
+        'card-foreground': v('card-foreground'),
+        popover: v('popover'),
+        'popover-foreground': v('popover-foreground'),
+        primary: v('primary'),
+        'primary-foreground': v('primary-foreground'),
+        'primary-soft': v('primary-soft'),
+        secondary: v('secondary'),
+        'secondary-foreground': v('secondary-foreground'),
+        muted: v('muted'),
+        'muted-foreground': v('muted-foreground'),
+        accent: v('accent'),
+        'accent-foreground': v('accent-foreground'),
+        destructive: v('destructive'),
+        'destructive-foreground': v('destructive-foreground'),
+        success: v('success'),
+        'success-foreground': v('success-foreground'),
+        warning: v('warning'),
+        'warning-foreground': v('warning-foreground'),
+        info: v('info'),
+        'info-foreground': v('info-foreground'),
+        border: v('border'),
+        input: v('input'),
+        ring: v('ring'),
+        // 侧边栏令牌
+        sidebar: v('sidebar'),
+        'sidebar-foreground': v('sidebar-foreground'),
+        'sidebar-primary': v('sidebar-primary'),
+        'sidebar-primary-foreground': v('sidebar-primary-foreground'),
+        'sidebar-accent': v('sidebar-accent'),
+        'sidebar-accent-foreground': v('sidebar-accent-foreground'),
+        'sidebar-border': v('sidebar-border'),
+        'sidebar-ring': v('sidebar-ring'),
+        // 风险等级
+        'risk-critical': v('risk-critical'),
+        'risk-critical-bg': v('risk-critical-bg'),
+        'risk-critical-text': v('risk-critical-text'),
+        'risk-high': v('risk-high'),
+        'risk-high-bg': v('risk-high-bg'),
+        'risk-high-text': v('risk-high-text'),
+        'risk-medium': v('risk-medium'),
+        'risk-medium-bg': v('risk-medium-bg'),
+        'risk-medium-text': v('risk-medium-text'),
+        'risk-low': v('risk-low'),
+        'risk-low-bg': v('risk-low-bg'),
+        'risk-low-text': v('risk-low-text'),
+        // 图表配色
+        'chart-1': v('chart-1'),
+        'chart-2': v('chart-2'),
+        'chart-3': v('chart-3'),
+        'chart-4': v('chart-4'),
+        'chart-5': v('chart-5'),
+      },
+      borderRadius: {
+        lg: 'calc(var(--radius) + 2px)',
+        xl: 'calc(var(--radius) + 4px)',
+        '2xl': 'calc(var(--radius) + 8px)',
+        '3xl': 'calc(var(--radius) + 12px)',
+      },
+      fontFamily: {
+        sans: [
+          'Inter',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"PingFang SC"',
+          '"Microsoft YaHei"',
+          'sans-serif',
+        ],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+      },
+      boxShadow: {
+        '2xs': '0px 1px 2px 0px rgba(0,0,0,0.03)',
+        xs: '0px 1px 2px 0px rgba(0,0,0,0.04)',
+        sm: '0px 1px 3px 0px rgba(0,0,0,0.04), 0px 1px 2px -1px rgba(0,0,0,0.03)',
+        md: '0px 4px 12px 0px rgba(0,0,0,0.06), 0px 2px 4px -1px rgba(0,0,0,0.04)',
+        lg: '0px 8px 24px 0px rgba(0,0,0,0.08), 0px 4px 8px -1px rgba(0,0,0,0.04)',
+        xl: '0px 16px 48px 0px rgba(0,0,0,0.10), 0px 8px 16px -2px rgba(0,0,0,0.04)',
+        '2xl': '0px 24px 64px 0px rgba(0,0,0,0.12)',
+      },
+      keyframes: {
+        'pulse-risk': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.6' },
+        },
+        'fade-in': {
+          from: { opacity: '0', transform: 'translateY(4px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'ping-soft': {
+          '75%, 100%': { transform: 'scale(2)', opacity: '0' },
+        },
+      },
+      animation: {
+        'pulse-risk': 'pulse-risk 2s ease-in-out infinite',
+        'fade-in': 'fade-in 0.25s ease-out',
+        'ping-soft': 'ping-soft 1.8s cubic-bezier(0,0,0.2,1) infinite',
+      },
+    },
+  },
+  plugins: [],
+};

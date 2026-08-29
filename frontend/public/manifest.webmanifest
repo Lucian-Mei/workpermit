@@ -1,0 +1,20 @@
+{
+  "name": "EHS 安全管理系统",
+  "short_name": "EHS系统",
+  "description": "隐患管理 · 电子化作业票 · 安全态势监控",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
