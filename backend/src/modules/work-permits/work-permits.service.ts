@@ -56,9 +56,39 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
     await this.autoArchiveExpired().catch((e) => this.logger.warn(`启动时归档失败：${e?.message}`));
     this.archiveTimer = setInterval(() => {
       this.autoArchiveExpired().catch((e) => this.logger.warn(`定时归档失败：${e?.message}`));
+      this.purgeAbandonedDrafts().catch((e) => this.logger.warn(`清理废弃草稿失败：${e?.message}`));
     }, 6 * 3600 * 1000);
     if (typeof this.archiveTimer.unref === 'function') this.archiveTimer.unref();
     this.logger.log('超期自动归档已启动：启动时执行一次，此后每 6 小时一次');
+  }
+
+  /**
+   * 清理废弃草稿：申请向导"按需建票"会在用户点保存/传证书/提现场检查时就占号建票，
+   * 中途放弃会留下空草稿并永久占用 GWP-/HWP- 票号。
+   * 安全边界：仅删除「状态为草稿 + 超过 7 天 + 作业内容/地点/作业名称全为空」的空白票，
+   * 绝不触碰任何已填写内容的票据；整体 try/catch 包裹，失败只告警不影响服务。
+   */
+  async purgeAbandonedDrafts() {
+    const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+    const rows = await this.db
+      .select({ id: schema.workPermits.id })
+      .from(schema.workPermits)
+      .where(
+        and(
+          eq(schema.workPermits.status, 'draft'),
+          lt(schema.workPermits.createdAt, cutoff),
+          isNull(schema.workPermits.content),
+          isNull(schema.workPermits.location),
+          isNull(schema.workPermits.jobName),
+        ),
+      )
+      .limit(200);
+    if (rows.length === 0) return 0;
+    for (const r of rows) {
+      await this.db.delete(schema.workPermits).where(eq(schema.workPermits.id, r.id));
+    }
+    this.logger.log(`清理废弃空白草稿 ${rows.length} 张`);
+    return rows.length;
   }
 
   onModuleDestroy() {
@@ -314,6 +344,16 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
   // 更新草稿/申请信息
   async update(id: string, dto: any, user: any) {
     const wp = await this.ensure(id);
+    // 越权防护：仅超级管理员 / 具备全量查看权限者 / 申请人本人可修改
+    // （口径与 pause/resume、getDetail 保持一致）
+    const canEditAll = isSuperAdmin(user) || (user?.permissions || []).includes('epermit:view_all');
+    if (!canEditAll && wp.applicantId !== user?.userId) {
+      throw new ForbiddenException('仅管理员、具备全量查看权限者或申请人本人可修改该作业票');
+    }
+    // 终态票据禁止修改（完工 / 归档 / 作废）
+    if (['finished', 'completed', 'archived', 'voided'].includes(wp.status)) {
+      throw new BadRequestException('作业票已结束（完工/归档/作废），不可再修改');
+    }
     const patch: any = { updatedAt: new Date() };
     // 单表合并后全部表单字段均由作业票承载（原[方案A]分散在申请单）
     const strFields = [
@@ -327,8 +367,11 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
     if (dto.operatorNames) patch.operatorNames = dto.operatorNames;
     if (dto.safetyMeasures) patch.safetyMeasures = dto.safetyMeasures;
     if (dto.jsas !== undefined) patch.jsas = dto.jsas;
-    // 危险作业监护人双签（驳回重提时复用已有签名）
-    if (dto.guardianSignatures !== undefined) patch.guardianSignatures = dto.guardianSignatures;
+    if (dto.steps !== undefined) patch.steps = dto.steps;
+    // 监护人双签属合规签名：仅草稿/驳回态可变更，防止已提交票据上的签名被篡改
+    if (dto.guardianSignatures !== undefined && ['draft', 'rejected'].includes(wp.status)) {
+      patch.guardianSignatures = dto.guardianSignatures;
+    }
     // 常规票预计作业人数（P0-9）
     if (dto.expectedOperatorCount !== undefined && !wp.isHazardous) {
       const n = Number(dto.expectedOperatorCount);
@@ -1262,7 +1305,15 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async removeInspection(inspId: string) {
+  /** 删除巡检记录：限定必须属于该作业票，防止传任意 id 越权删除他人留痕 */
+  async removeInspection(id: string, inspId: string) {
+    await this.ensure(id);
+    const [rec] = await this.db
+      .select({ id: schema.inspectionRecords.id })
+      .from(schema.inspectionRecords)
+      .where(and(eq(schema.inspectionRecords.id, inspId), eq(schema.inspectionRecords.workPermitId, id)))
+      .limit(1);
+    if (!rec) throw new NotFoundException('巡检记录不存在或不属于该作业票');
     await this.db.delete(schema.inspectionRecords).where(eq(schema.inspectionRecords.id, inspId));
     return { success: true };
   }

@@ -259,6 +259,7 @@ export default function EApplicationApply() {
         guardianSignatures: wp.guardianSignatures || [],
       });
       if (Array.isArray(wp.jsas) && wp.jsas.length) setJsas(wp.jsas);
+      if (Array.isArray(wp.steps) && wp.steps.length) setSteps(wp.steps);
       if (Array.isArray(wp.measureSelections) && wp.measureSelections.length) {
         const byPhase: any = { pre: [], during: [], post: [] };
         wp.measureSelections.forEach((m: any, i: number) => {
@@ -357,6 +358,7 @@ export default function EApplicationApply() {
       expectedOperatorCount: !isHazard && form.operatorCount ? Number(form.operatorCount) : undefined,
       linkedRoutineId: isHazard ? (linkedRoutineId || null) : null,
       guardianSignatures: isHazard ? (form.guardianSignatures || []) : [],
+      steps: steps.filter((s) => s.trim()),
       jsas: jsas.filter((j) => j.step?.trim() || j.hazard?.trim() || j.control?.trim()),
       safetyMeasures,
     });

@@ -50,7 +50,8 @@ export default function EPermitDetail() {
   const canApproveEhs = showApproval && (isSuper || hasPerm(user, 'epermit:approve_ehs')) && d.status === 'ehs_reviewing';
   const canCheck = hasPerm(user, 'epermit:onsite_check') && (d.status === 'approved' || d.status === 'printed' || d.status === 'paused' || d.status === 'finished');
   const canPrint = hasPerm(user, 'epermit:print') && (d.status === 'approved' || d.status === 'printed' || d.status === 'paused' || d.status === 'finished' || d.status === 'completed' || d.status === 'archived');
-  const canEdit = (d.status === 'draft' || d.status === 'rejected') && (d.applicantId === user?.id || hasPerm(user, 'epermit:create'));
+  // 与后端 update 越权校验口径一致：管理员 / 具备全量查看权限者 / 申请人本人，避免点了编辑却在保存时 403
+  const canEdit = (d.status === 'draft' || d.status === 'rejected') && (isSuper || hasPerm(user, 'epermit:view_all') || d.applicantId === user?.id);
   // 暂停/恢复：与后端一致 —— 管理员 / 申请人本人 / 持有 epermit:pause 权限点的人员
   const canPauseTicket = isSuper || hasPerm(user, 'epermit:pause') || d.applicantId === user?.id;
   // P0-8：常规作业票（非特种）已批准且未完成时，可挂靠开具危险作业票

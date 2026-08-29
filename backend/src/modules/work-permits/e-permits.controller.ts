@@ -210,7 +210,7 @@ export class EPermitsController {
   @RequirePerms('epermit:onsite_check')
   @HttpCode(200)
   async removeInspection(@Param('id') id: string, @Param('inspId') inspId: string) {
-    return this.svc.removeInspection(inspId);
+    return this.svc.removeInspection(id, inspId);
   }
 
   // ===== 安全交底（单表合并后挂作业票，一张票一份）=====

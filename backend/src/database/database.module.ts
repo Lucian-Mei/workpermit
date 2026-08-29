@@ -337,6 +337,7 @@ export class DatabaseModule implements OnModuleInit, OnApplicationBootstrap {
         await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS building varchar(100)`);
         await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS floor varchar(100)`);
         await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS site_inspection jsonb`);
+        await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS steps jsonb DEFAULT '[]'::jsonb`);
       } catch (e) {
         console.warn(`[migrate] 作业票合规字段补列失败（忽略）: ${(e as Error).message}`);
       }

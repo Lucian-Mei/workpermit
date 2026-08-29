@@ -1194,8 +1194,8 @@ export class SeedService implements OnModuleInit {
     const appInspIds: string[] = [];
     let wpSeq = 0;
 
-    // 【2026-08】申请单/作业票演示数据默认关闭（SEED_DEMO_APPS=1 恢复）：
-    // 作业票申请须与作业票一一对应（提交即建票），seed 直接插库会导致两表断裂；
+    // 【2026-08】作业票演示数据默认关闭（SEED_DEMO_APPS=1 恢复，变量名沿用历史命名）：
+    // 单表合并后已无"申请单/作业票两表"，此处直接插 work_permits；
     // 真实作业票数据由 simulate_v3.py 全流程 API 模拟生成。
     if (process.env.SEED_DEMO_APPS === '1') {
     for (const a of APPLICATIONS) {

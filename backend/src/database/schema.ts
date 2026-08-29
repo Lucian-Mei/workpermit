@@ -275,6 +275,8 @@ export const workPermits = pgTable(
     guardianSignatures: jsonb('guardian_signatures').$type<Array<{ role: 'company_guardian' | 'contractor_guardian'; name: string; signImg?: string; signedAt?: string }>>().default([]),
     // 危险作业提交前现场检查记录（单表合并后由作业票承载，原仅存在于申请单）
     siteInspection: jsonb('site_inspection').$type<{ inspector?: string; result?: string; note?: string; submittedAt?: string } | null>().default(null),
+    // 作业步骤（单表合并后由作业票承载，原仅存在于申请单）
+    steps: jsonb('steps').$type<string[]>().default([]),
     // 承包商邀请（员工提交后生成，免登录填写）
     contractorInviteToken: varchar('contractor_invite_token', { length: 64 }),
     contractorInviteExpiresAt: timestamp('contractor_invite_expires_at', { withTimezone: true }),
