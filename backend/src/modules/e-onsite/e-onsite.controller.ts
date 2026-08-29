@@ -1,7 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
 import { DRIZZLE } from '@/database/database.module';
-import { inspectionRecords, workPermits, workPermitApplications } from '@/database/schema';
+import { inspectionRecords, workPermits } from '@/database/schema';
 import { and, desc, eq, gte, lte, like } from 'drizzle-orm';
 
 /** 电子现场台 · 巡检记录列表（全量） */
@@ -19,7 +19,6 @@ export class EOnsiteController {
     const rows = await this.db
       .select({
         id: inspectionRecords.id,
-        applicationId: inspectionRecords.applicationId,
         workPermitId: inspectionRecords.workPermitId,
         inspector: inspectionRecords.inspector,
         result: inspectionRecords.result,
@@ -32,13 +31,12 @@ export class EOnsiteController {
         location: workPermits.location,
         area: workPermits.area,
         department: workPermits.department,
-        contractorUnit: workPermitApplications.contractorUnit,
+        contractorUnit: workPermits.contractorUnit,
         supervisorName: workPermits.supervisorName,
         applicantName: workPermits.applicantName,
       })
       .from(inspectionRecords)
       .leftJoin(workPermits, eq(inspectionRecords.workPermitId, workPermits.id))
-      .leftJoin(workPermitApplications, eq(inspectionRecords.applicationId, workPermitApplications.id))
       .where(conds.length ? and(...conds) : undefined)
       .orderBy(desc(inspectionRecords.inspectedAt))
       .limit(limit);

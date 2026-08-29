@@ -243,49 +243,49 @@ export class DashboardService {
     // ① 待我审批：处于审批中，且当前用户是复核人或审批人
     const approvals = await this.db
       .select({
-        id: schema.workPermitApplications.id,
-        permitNo: schema.workPermitApplications.permitNo,
-        jobName: schema.workPermitApplications.jobName,
-        location: schema.workPermitApplications.location,
-        department: schema.workPermitApplications.department,
-        applicantName: schema.workPermitApplications.applicantName,
-        status: schema.workPermitApplications.status,
+        id: schema.workPermits.id,
+        permitNo: schema.workPermits.permitNo,
+        jobName: schema.workPermits.jobName,
+        location: schema.workPermits.location,
+        department: schema.workPermits.department,
+        applicantName: schema.workPermits.applicantName,
+        status: schema.workPermits.status,
       })
-      .from(schema.workPermitApplications)
+      .from(schema.workPermits)
       .where(
         and(
-          inArray(schema.workPermitApplications.status, ['pending_review', 'reviewing']),
+          inArray(schema.workPermits.status, ['pending_review', 'reviewing']),
           or(
-            eq(schema.workPermitApplications.reviewerId, uid),
-            eq(schema.workPermitApplications.approverId, uid),
+            eq(schema.workPermits.reviewerId, uid),
+            eq(schema.workPermits.approverId, uid),
           ),
         ),
       )
-      .orderBy(desc(schema.workPermitApplications.createdAt))
+      .orderBy(desc(schema.workPermits.createdAt))
       .limit(20);
 
     // ② 待确认交底：已打印/暂停，但安全交底未完成（leftJoin safety_briefings）
     const briefingRows = await this.db
       .select({
-        id: schema.workPermitApplications.id,
-        permitNo: schema.workPermitApplications.permitNo,
-        jobName: schema.workPermitApplications.jobName,
-        location: schema.workPermitApplications.location,
-        department: schema.workPermitApplications.department,
+        id: schema.workPermits.id,
+        permitNo: schema.workPermits.permitNo,
+        jobName: schema.workPermits.jobName,
+        location: schema.workPermits.location,
+        department: schema.workPermits.department,
         briefStatus: schema.safetyBriefings.status,
       })
-      .from(schema.workPermitApplications)
+      .from(schema.workPermits)
       .leftJoin(
         schema.safetyBriefings,
-        eq(schema.safetyBriefings.applicationId, schema.workPermitApplications.id),
+        eq(schema.safetyBriefings.workPermitId, schema.workPermits.id),
       )
       .where(
         and(
-          inArray(schema.workPermitApplications.status, ['printed', 'paused']),
+          inArray(schema.workPermits.status, ['printed', 'paused']),
           or(isNull(schema.safetyBriefings.status), sql`${schema.safetyBriefings.status} <> 'done'`),
         ),
       )
-      .orderBy(desc(schema.workPermitApplications.printedAt))
+      .orderBy(desc(schema.workPermits.printedAt))
       .limit(20);
 
     // ③ 隐患待跟进：分配给我且未闭环，或已超过整改期限
@@ -367,7 +367,7 @@ export class DashboardService {
           id: a.id,
           title: `${a.permitNo} 待审批`,
           sub: `${a.department || '—'} · ${a.jobName || '作业'} · ${a.applicantName || ''}`,
-          to: `/work-permit-applications/${a.id}`,
+          to: `/e-permits/view/${a.id}`,
         })),
       },
       {
@@ -377,7 +377,7 @@ export class DashboardService {
           id: a.id,
           title: `${a.permitNo} 现场交底待确认`,
           sub: `${a.department || '—'} · ${a.jobName || '作业'}`,
-          to: `/e-applications/${a.id}`,
+          to: `/e-permits/view/${a.id}`,
         })),
       },
       {

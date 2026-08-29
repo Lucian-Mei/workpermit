@@ -44,7 +44,7 @@
 | 作业人数 | `operatorCount` | `expectedOperatorCount` |
 | 承包商/项目扩展 | `projectName`/`contractorUnit`/`contractorHead`/`contractorPhone`/`materialsList`/`equipmentList`/`managementDept`/`managementPerson`（352–361） | 无 |
 | 危险类型标签 | `hazardTypeList`（362） | 无 |
-| 培训记录 | `trainingId`（379，FK→trainings） | 无（trainings 现经 applicationId 关联） |
+| 培训记录 | `trainingId`（FK→trainings，已随申请单删除） | `workPermitTrainings` 经 `workPermitId` 关联（NOT NULL，FK→workPermits） |
 | 挂靠常规票 | `linkedRoutineId`/`linkedRoutineNo`（377–378） | `linkedRoutineId`/`linkedRoutineNo`（242–243）✅ 双表都有 |
 | 监护人双签 | `guardianSignatures`（381） | 无 |
 | 入厂核验 | `entryQrToken`/`entryQrUrl`（393–394） | 无（有 `trainingQrToken` 294） |
@@ -73,8 +73,8 @@
 
 ### 3.1 表职责
 - **`workPermits`**：唯一作业票表。常规票 `isHazardous=false`（前缀 `GWP-`）；危险票 `isHazardous=true`（前缀按类型）。承载全部字段（见 §4 迁移表）。
-- **`workPermitApplications`**：**停用**。保留一个发布周期作为只读兼容表（见 §9 回滚），后续版本删除。
-- **`workPermitTrainings`**：保留，关联键由 `applicationId` 改为 `workPermitId`。
+- **`workPermitApplications`**：**已彻底删除**（2026-08-29 执行）。系统未上线、无存量数据与真实用户，按用户最终决策「干干净净一次性修改彻底」直接删表 + 删 `applicationId` 列 + 删模块 + 删全部引用，不做灰度开关、不做迁移脚本、不做只读兼容、不做回滚。
+- **`workPermitTrainings`**：保留，关联键由 `applicationId` 改为 `workPermitId`（NOT NULL，FK→`workPermits`）。
 - **`certificateOcr`**：已关联 `workPermitId`（455 行），无需改。
 
 ### 3.2 状态机（单链）
@@ -115,7 +115,7 @@
 
 **`workPermits` 需新增列汇总（13 项）**：`jobName`、`projectName`、`contractorUnit`、`contractorHead`、`contractorPhone`、`materialsList`、`equipmentList`、`managementDept`、`managementPerson`、`hazardTypeList`、`guardianSignatures`、`entryQrToken`、`entryQrUrl`。
 
-**`workPermitTrainings` 改造**：新增 `workPermitId`（NOT NULL，FK→`workPermits`），保留 `applicationId` 一个发布周期后删除；迁移脚本回填 `workPermitId`。
+**`workPermitTrainings` 改造**：新增 `workPermitId`（NOT NULL，FK→`workPermits`）。`applicationId` 列已随合并一并删除，无保留期、无迁移脚本、无回滚（系统未上线）。
 
 ---
 
@@ -136,9 +136,9 @@
 - `approve` 系列（review/ehs/final）：沿用 `advanceChain`；常规票经 2 级即 `approved` 并生成 `entryQrToken`（原 `onApproved` 非危险分支逻辑迁入）。
 - 新增 `completeTrainingSign`、`getEntryInfo`、`getActiveApplications` 等原申请单服务方法（迁入或直接调用 trainings/public-actions）。
 
-### 6.2 `work-permit-applications.service.ts`
-- **方案 B 下整体废弃**：方法合并入 `work-permits.service.ts`；保留文件一个发布周期作只读兼容（或删除并全局替换引用）。
-- 停用 `syncWorkPermitsFromApplications`（`database.module.ts` 665）。
+### 6.2 `work-permit-applications` 模块（已删除）
+- **已彻底删除**（2026-08-29 执行）：`briefing-template.ts` / `e-applications.controller.ts` / `work-permit-applications.module.ts` / `work-permit-applications.service.ts` 全部删除；方法合并入 `work-permits.service.ts`（建单/提交/审批主路径）与 `public-actions`（入厂/培训/签名）。全局引用已清零，无残留编译引用。
+- `syncWorkPermitsFromApplications` 已从 `database.module.ts` 删除（无双表同步逻辑）。
 
 ### 6.3 `public-actions.service.ts`
 - `loadSummary`：移除 `targetType='application'` 分支，仅 `work_permit`。
@@ -167,19 +167,12 @@
 
 ---
 
-## 9. 存量数据迁移与回滚
+## 9. 存量数据与回滚（已随 P0 一次性处理）
 
-### 9.1 迁移脚本（一次性）
-1. 为 `workPermits` 加 13 个新列（§4）。
-2. `workPermitTrainings` 加 `workPermitId`，按 `applicationId` 回填。
-3. 遍历未 `converted` 的申请单 → 生成 `workPermits`（字段按 §4 映射，`planStart`→`startTime` 等）；已 `converted` 的申请单其对应票已存在，仅补 `jobName`/`contractor*`/`entryQrToken` 等缺失字段。
-4. 危险票 `guardianSignatures`、挂靠 `linkedRoutineId` 从申请单补齐。
-5. 停用 `syncWorkPermitsFromApplications`。
-
-### 9.2 回滚策略
-- **发布周期内双写/双读**：通过特性开关 `MERGE_APP_TO_PERMIT`（默认 false→true 灰度）控制；开关 false 时走旧申请单路径，true 时走 `workPermits` 单路径。
-- `workPermitApplications` 表保留只读一个发布周期；确认稳定后下个版本删除。
-- PGlite 无外置迁移框架，回滚 = Git 回退 + 重新 seed（v6 目录已验证可重建）。
+- **系统未上线**：无真实用户、无存量 `SQ-` 申请单、无生产数据。因此**不做存量迁移脚本、不做灰度开关、不做只读兼容、不做回滚方案**。
+- **执行动作（2026-08-29）**：直接删除 `workPermitApplications` 表 + 删除 `workPermits`/子表上的 `applicationId` 列 + 删除 `work-permit-applications` 模块 + 全局清零引用；`drizzle/0000` 从干净 `schema.ts` 重新生成，新库从 0000 一次性重建（含 13 个新列、`workPermitTrainings.workPermitId`）。
+- **重建/回滚手段**：因无外置迁移框架，任何结构问题 = Git 回退对应提交 + 删除 PGlite 数据目录后重新 seed（v6 目录已验证可重建）。
+- **`converted` 隐藏态**：状态机已删除 `converted`，统一 `draft→…→completed/voided`，无中间号、无换号。
 
 ---
 
@@ -187,11 +180,11 @@
 
 | 阶段 | 范围 | 关键交付 | 验收标准 |
 |---|---|---|---|
-| **P0 数据结构** | schema | `workPermits` 加 13 列；`trainings` 加 `workPermitId`；保留 `workPermitApplications` 只读 | `tsc --noEmit` 通过；DDL 可迁移；旧表可双读 |
+| **P0 数据结构** | schema | `workPermits` 加 13 列；`trainings` 改 `workPermitId`；**彻底删除 `workPermitApplications` 表与 `applicationId` 列** | `tsc --noEmit` 通过；干净 0000 可重建；全局无 `workPermitApplications`/`applicationId` 可执行引用 |
 | **P1 服务合并** | `work-permits.service` | `createDraft`/`submit`/`approve` 单路径；迁入 `entry`/`training` 方法；停 `syncWorkPermitsFromApplications`；`public-actions` 改读 `workPermits` | 新建常规票即占 `GWP-` 号；审批链按 `chainTemplate`；入厂/培训 QR 正常；公开页仅 `work_permit` |
 | **P2 前端收敛** | `frontend` | 合并申请单页到作业票；常量/状态机清理；打印字段库补 `jobName`/`entryQrToken` | 无"申请单"独立入口；草稿即 `workPermits.draft`；打印含新字段；无 `FOR00X`/`SQ-` 残留 |
 | **P3 种子/看板/公开页** | `seed`/`dashboard`/public | 种子直写 `workPermits`；看板统一源；公开页 token 改票 | 重新 seed 后 30 张常规票均为 `GWP-`；看板/公开页正常 |
-| **P4 迁移与退役** | 数据/清理 | 存量迁移脚本；去 `converted`；下版本删 `workPermitApplications` | 存量数据全部落到 `workPermits`；全局无申请单写引用；grep 零残留 |
+| **P4 收尾清理** | 数据/清理 | 去 `converted` 残留文案；前端 `EApplications` 页合并（见 P2）；全局 grep `workPermitApplications`/`applicationId`/`SQ-` 清零 | 全局无 `workPermitApplications`/`applicationId`/`SQ-`/`converted` 残留；前端无"申请单"独立入口 |
 
 ### 10.1 贯穿性验收（与既定口径一致）
 - 常规票 `jsas` 必填、步骤级定级（高/中/低）、不评整体风险等级。
@@ -206,9 +199,9 @@
 | 项 | 风险/问题 | 处置 |
 |---|---|---|
 | 审批模型分歧 | 申请单并行会签 vs `approval-routing` 链，历史数据可能不一致 | 以 `approval-routing` 为真相源；存量 `converted` 票的 `approvalChain` 已权威，无需回灌并行字段 |
-| 编号断档 | 旧 `SQ-` 存量记录迁移后编号消失 | 迁移时保留 `replacedByPermitNo` 或备注原 `SQ-`，台账可追溯 |
-| 双表过渡期 | 灰度期双写一致性 | 特性开关 + 迁移脚本幂等；先读后写校验 |
-| 前端耦合 | 多处隐式依赖申请单 ID（公开页/看板） | P1/P3 集中替换；grep `workPermitApplications` 全量清零 |
+| 编号断档 | 旧 `SQ-` 中间号（系统未上线无存量） | N/A：直接删除，新建即占 `GWP-`/`HWP-` 正式号，无中间号、无断档 |
+| 双表过渡期 | 已消除 | 直接单表删除，无灰度、无双写、无过渡期 |
+| 前端耦合 | 公开页/看板曾依赖申请单 ID | 已改读 `workPermits`/`workPermitId`；前端 `EApplications` 页合并见 P2 |
 | PGlite 重建 | 迁移需重建库 | 沿用 v6 目录 + 重新 seed 验证 |
 
 ---
@@ -216,6 +209,6 @@
 ## 12. 后续动作
 
 本设计为方案 B 的详细蓝图。确认后由高级项目经理拆解为开发任务清单（tasklist，含 P0–P4 验收标准），再进入实施。实施前应就以下开放问题与用户最终确认：
-1. 存量 `SQ-` 编号的台账可追溯方式（备注 vs 保留映射表）；
-2. 特性开关灰度策略是否采用（或直接一次性切换）；
+1. ~~存量 `SQ-` 编号的台账可追溯方式~~ — 已决议：系统未上线、直接删除，无存量可追溯诉求。
+2. ~~特性开关灰度策略~~ — 已决议：直接一次性删除，不做灰度开关。
 3. 危险票"监护人双签"字段是否随合并一并落到 `workPermits`（建议是）。

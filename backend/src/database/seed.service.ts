@@ -6,9 +6,26 @@ import { eq, count, inArray } from 'drizzle-orm';
 import * as schema from '@/database/schema';
 import { AuthService } from '@/modules/auth/auth.service';
 import { PERMISSIONS, ROLE_SEEDS, PERMIT_NO_PREFIX } from '@/common/constants/domain';
-import { buildBriefingTemplate } from '@/modules/work-permit-applications/briefing-template';
 import { evaluateRiskLevel } from '@/modules/work-permits/approval-routing';
 import { appBaseUrl } from '@/common/base-url';
+
+// 安全交底要点模板（原 work-permit-applications/briefing-template 已随模块删除，这里内联一份默认模板）
+function buildBriefingTemplate() {
+  return [
+    {
+      key: 'general',
+      title: '作业前安全交底',
+      mode: 'normal',
+      items: [
+        { text: '作业内容、范围与风险已告知全体作业人员' },
+        { text: '作业票安全措施已逐项确认并落实' },
+        { text: '个人防护用品已正确佩戴' },
+        { text: '应急处置与疏散路线已明确' },
+        { text: '监护人/监护措施已就位' },
+      ],
+    },
+  ];
+}
 
 const DEMO_SEEDED = 'demo_seeded';
 const DEMO_IDS = 'demo_ids';
@@ -972,7 +989,7 @@ export class SeedService implements OnModuleInit {
     await del(schema.inspectionRecords, schema.inspectionRecords.id, ids.inspections);
     await del(schema.safetyBriefings, schema.safetyBriefings.id, ids.briefings);
     await del(schema.workPermits, schema.workPermits.id, ids.appWorkPermits);
-    await del(schema.workPermitApplications, schema.workPermitApplications.id, ids.applications);
+    await del(schema.workPermits, schema.workPermits.id, ids.applications);
     await del(schema.workPermitTrainings, schema.workPermitTrainings.id, ids.appTrainings);
     await del(schema.workPermitChecks, schema.workPermitChecks.id, ids.checks);
     await del(schema.workPermits, schema.workPermits.id, ids.workPermits);
@@ -988,7 +1005,6 @@ export class SeedService implements OnModuleInit {
     await this.db.delete(schema.safetyBriefings);
     await this.db.delete(schema.workPermitChecks);
     await this.db.delete(schema.workPermits);
-    await this.db.delete(schema.workPermitApplications);
     await this.db.delete(schema.workPermitTrainings);
     await this.db.delete(schema.hazards);
     await this.db.delete(schema.qrCodes);
@@ -1196,9 +1212,10 @@ export class SeedService implements OnModuleInit {
       const hazardLabels = (a.hazTypes || []).map((t: string) => HAZARD_LABELS[t] || t);
       const managementPerson = a.approver ? userName(a.approver) : a.supervisor;
 
-      // 主单（先建，trainingId 稍后回填；training.application_id 为 NOT NULL 需先有主单）
+      // 主单：直接建为常规作业票（GWP），不再有独立的作业申请单（方案 B 单表合并）
       const patch: any = {
-        permitNo: String(a.permitNo).replace(/^GWP-/, 'SQ-'),
+        permitNo: a.permitNo,
+        type: 'routine',
         channel: 'electronic',
         applicantId,
         applicantName: userName(a.applicant),
@@ -1208,8 +1225,8 @@ export class SeedService implements OnModuleInit {
         jobName: a.jobName,
         projectName,
         content: a.content,
-        planStart,
-        planEnd,
+        startTime: planStart,
+        endTime: planEnd,
         operatorNames: a.operators as any,
         supervisorName: a.supervisor,
         contractorUnit: a.contractor,
@@ -1218,7 +1235,6 @@ export class SeedService implements OnModuleInit {
         managementDept: a.dept,
         managementPerson,
         hazardTypeList: hazardLabels as any,
-        involvesHazardous: a.involvesHazardous,
         status: a.status,
         reviewerId,
         reviewerName: a.reviewer ? userName(a.reviewer) : null,
@@ -1244,15 +1260,15 @@ export class SeedService implements OnModuleInit {
         patch.finishedAt = daysAgo(4);
         patch.archivedAt = daysAgo(3);
       }
-      const [app] = await this.db.insert(schema.workPermitApplications).values(patch).returning({ id: schema.workPermitApplications.id });
+      const [app] = await this.db.insert(schema.workPermits).values(patch).returning({ id: schema.workPermits.id });
       appIds.push(app.id);
 
-      // 承包商安全培训记录（application_id NOT NULL，故在主单之后创建，并回填主单 trainingId）
+      // 承包商安全培训记录（直接挂常规作业票）
       const traineeSigs = a.trainees.map((n) => ({ name: n, signed: true, signImg: sigImg(n), signedAt: hoursAgo(6) }));
       const [training] = await this.db
         .insert(schema.workPermitTrainings)
         .values({
-          applicationId: app.id,
+          workPermitId: app.id,
           trainer: a.trainer,
           trainingTopics: `${a.jobName} 作业安全交底与承包商入场培训：作业风险辨识、个人防护、应急处置、作业许可要求。`,
           traineeNames: a.trainees as any,
@@ -1265,48 +1281,9 @@ export class SeedService implements OnModuleInit {
         })
         .returning({ id: schema.workPermitTrainings.id });
       appTrainingIds.push(training.id);
-      await this.db
-        .update(schema.workPermitApplications)
-        .set({ trainingId: training.id })
-        .where(eq(schema.workPermitApplications.id, app.id));
 
       // 为含危险作业的申请单创建一张对应常规票（GWP），作为后续危险票的挂靠父单
-      let routineWp: { id: string; permitNo: string } | null = null;
-      if (a.hazTypes.length > 0) {
-        const [rw] = await this.db
-          .insert(schema.workPermits)
-          .values({
-            permitNo: seedPermitNo('routine'),
-            channel: 'electronic',
-            type: 'routine',
-            isHazardous: false,
-            applicationId: app.id,
-            area: mapArea(a.area),
-            location: a.location,
-            startTime: planStart,
-            endTime: planEnd,
-            applicantId,
-            applicantName: userName(a.applicant),
-            department: a.dept,
-            operatorNames: a.operators as any,
-            supervisorName: a.supervisor,
-            content: a.content,
-            status: 'approved',
-            riskLevel: 'low',
-            reviewerId,
-            reviewerName: a.reviewer ? userName(a.reviewer) : null,
-            reviewOpinion: '安全措施与作业方案审核合格，同意进入下一环节。',
-            reviewedAt: createdAt,
-            approverId,
-            approverName: a.approver ? userName(a.approver) : null,
-            approvalOpinion: a.approver ? '批准作业，须严格执行作业票安全措施。' : null,
-            approvedAt: a.approver ? createdAt : null,
-            createdAt,
-            updatedAt: new Date(),
-          })
-          .returning({ id: schema.workPermits.id, permitNo: schema.workPermits.permitNo });
-        routineWp = rw;
-      }
+      // 【方案 B】主单本身已是常规票，危险票直接挂靠主单（app.id）。
 
       // 关联危险作业票（随主单状态推进）
       // 关联危险作业票状态随主单节点推进（保持一致，避免“草稿父单却挂着已批准作业票”）
@@ -1327,7 +1304,6 @@ export class SeedService implements OnModuleInit {
           type: t,
           isHazardous: true,
           riskLevel: evaluateRiskLevel({ type: t, isHazardous: true, startTime: wpStart, endTime: wpEnd }),
-          applicationId: app.id,
           area: mapArea(a.area),
           location: a.location,
           startTime: wpStart,
@@ -1339,8 +1315,8 @@ export class SeedService implements OnModuleInit {
           supervisorName: a.supervisor,
           content: a.content,
           safetyMeasures: [] as any,
-          linkedRoutineId: routineWp ? routineWp.id : null,
-          linkedRoutineNo: routineWp ? routineWp.permitNo : null,
+          linkedRoutineId: app.id,
+          linkedRoutineNo: a.permitNo,
           status: wpStatus,
           reviewerId,
           reviewerName: a.reviewer ? userName(a.reviewer) : null,
@@ -1388,7 +1364,7 @@ export class SeedService implements OnModuleInit {
         const [bf] = await this.db
           .insert(schema.safetyBriefings)
           .values({
-            applicationId: app.id,
+            workPermitId: app.id,
             briefer: a.trainer,
             points: points as any,
             aiDraft: null, // AI 草稿已移除
@@ -1409,7 +1385,7 @@ export class SeedService implements OnModuleInit {
         const [ir] = await this.db
           .insert(schema.inspectionRecords)
           .values({
-            applicationId: app.id,
+            workPermitId: app.id,
             inspectedAt: hoursAgo(ins.hoursAgo),
             inspector: ins.inspector,
             result: ins.result,
@@ -1465,29 +1441,19 @@ export class SeedService implements OnModuleInit {
     logger.log(`[sim] 开始模拟 ${n} 张常规作业票（含 JSA / 交底 / 入厂记录）...`);
 
     // ---- 幂等清理上次模拟 ----
-    const prev = await this.db.select({ id: schema.workPermitApplications.id })
-      .from(schema.workPermitApplications)
-      .where(eq(schema.workPermitApplications.projectName, SIM));
+    const prev = await this.db.select({ id: schema.workPermits.id })
+      .from(schema.workPermits)
+      .where(eq(schema.workPermits.projectName, SIM));
     const prevIds = prev.map((p) => p.id);
     if (prevIds.length) {
-      const simWps = await this.db.select({ id: schema.workPermits.id })
-        .from(schema.workPermits)
-        .where(inArray(schema.workPermits.applicationId, prevIds));
-      const simWpIds = simWps.map((w) => w.id);
-      if (simWpIds.length) {
-        await this.db.delete(schema.entryRegistrations)
-          .where(inArray(schema.entryRegistrations.workPermitId, simWpIds));
-      }
       await this.db.delete(schema.entryRegistrations)
-        .where(inArray(schema.entryRegistrations.applicationId, prevIds));
+        .where(inArray(schema.entryRegistrations.workPermitId, prevIds));
       await this.db.delete(schema.safetyBriefings)
-        .where(inArray(schema.safetyBriefings.applicationId, prevIds));
+        .where(inArray(schema.safetyBriefings.workPermitId, prevIds));
       await this.db.delete(schema.workPermitTrainings)
-        .where(inArray(schema.workPermitTrainings.applicationId, prevIds));
+        .where(inArray(schema.workPermitTrainings.workPermitId, prevIds));
       await this.db.delete(schema.workPermits)
-        .where(inArray(schema.workPermits.applicationId, prevIds));
-      await this.db.delete(schema.workPermitApplications)
-        .where(eq(schema.workPermitApplications.projectName, SIM));
+        .where(inArray(schema.workPermits.id, prevIds));
       logger.log(`[sim] 已清理上次模拟 ${prevIds.length} 条`);
     }
 
@@ -1682,23 +1648,20 @@ export class SeedService implements OnModuleInit {
         Object.assign(wpVals, { voidedAt, voidedByName: approver.name, voidReason: appVals.voidReason });
       }
 
-      const [app] = await this.db.insert(schema.workPermitApplications).values(appVals).returning({ id: schema.workPermitApplications.id });
-      wpVals.applicationId = app.id;
       const [wp] = await this.db.insert(schema.workPermits).values(wpVals).returning({ id: schema.workPermits.id });
 
       // 承包商入场培训
       let trainingId: string | null = null;
       if (['approved', 'printed', 'paused', 'finished', 'completed'].includes(status)) {
         const [tr] = await this.db.insert(schema.workPermitTrainings).values({
-          applicationId: app.id, trainer: supervisor,
+          workPermitId: wp.id, trainer: supervisor,
           trainingTopics: `${job} 作业安全交底与承包商入场培训：风险辨识、个人防护、应急处置、作业许可要求。`,
           traineeNames: operators,
           traineeSignatures: operators.map((o) => ({ name: o, signed: true, signImg: sigImg(o), signedAt: addDays(createdAt, 1) })),
           trainingDate: addDays(createdAt, 1), testResult: '合格',
           remark: `承包商：${pick(CONTRACTORS)}`, createdAt, updatedAt: new Date(),
-        }).returning({ id: schema.workPermitTrainings.id });
+        } as any).returning({ id: schema.workPermitTrainings.id });
         trainingId = tr.id;
-        await this.db.update(schema.workPermitApplications).set({ trainingId }).where(eq(schema.workPermitApplications.id, app.id));
       }
 
       // 现场安全交底
@@ -1713,7 +1676,7 @@ export class SeedService implements OnModuleInit {
           ? [{ name: `${pick(CONTRACTORS)}·现场负责人`, role: 'contractor', signImg: sigImg('承包商'), signedAt: addDays(createdAt, 2) }]
           : [];
         await this.db.insert(schema.safetyBriefings).values({
-          applicationId: app.id, briefer: supervisor,
+          workPermitId: wp.id, briefer: supervisor,
           points: points as any, aiDraft: null,
           content: done ? '现场已按申请单第3步逐项交底并确认。' : null,
           photos: [], signatures: briefSigs,
@@ -1728,7 +1691,7 @@ export class SeedService implements OnModuleInit {
         for (const op of operators) {
           const signOutAt = (status === 'finished' || status === 'completed') ? addDays(printedAt, 1 + rnd(2)) : null;
           await this.db.insert(schema.entryRegistrations).values({
-            applicationId: app.id, workPermitId: wp.id,
+            workPermitId: wp.id,
             contractorUnit: pick(CONTRACTORS), workerName: op,
             workerIdCard: idCard(), workerPhone: '1' + pick(['3', '5', '7', '8']) + String(rnd(100000000)).padStart(8, '0'),
             trainingPassed: true, trainingRecordId: trainingId, signImg: sigImg(op),

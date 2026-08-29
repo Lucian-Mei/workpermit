@@ -12,7 +12,6 @@ import { ContractorsModule } from '@/modules/contractors/contractors.module';
 import { HazardTypesModule } from '@/modules/hazard-types/hazard-types.module';
 import { HazardsModule } from '@/modules/hazards/hazards.module';
 import { WorkPermitsModule } from '@/modules/work-permits/work-permits.module';
-import { WorkPermitApplicationsModule } from '@/modules/work-permit-applications/work-permit-applications.module';
 import { EOnsiteModule } from '@/modules/e-onsite/e-onsite.module';
 import { DashboardModule } from '@/modules/dashboard/dashboard.module';
 import { BackupModule } from '@/modules/backup/backup.module';
@@ -39,7 +38,6 @@ import { SeedService } from '@/database/seed.service';
     HazardTypesModule,
     HazardsModule,
     WorkPermitsModule,
-    WorkPermitApplicationsModule,
     EOnsiteModule,
     DashboardModule,
     BackupModule,

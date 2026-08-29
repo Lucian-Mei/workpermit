@@ -208,7 +208,7 @@ export class AiService {
 
   // ========== 作业票：JSA 工作安全分析（按作业步骤逐一分析危害与措施）==========
   // 接收作业内容 + 作业步骤，逐步骤分析，返回 [{step, hazard, control}]；
-  // 用户在申请页可编辑后保存（落库到 workPermits.jsas / workPermitApplications.jsas）。
+  // 用户在作业票页可编辑后保存（落库到 work_permits.jsas）。
   async analyzeJsa(input: {
     content?: string;
     steps?: string[];

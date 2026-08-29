@@ -150,47 +150,11 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
     return `${prefix}${String(seq).padStart(4, '0')}`;
   }
 
-  // 创建草稿（申请人先填基本信息；可从作业申请单进入，传入 applicationId）
+  // 创建草稿（申请人先填基本信息）
   // channel: 'paper' 纸质作业票（原流程）/ 'electronic' 作业票（移动端优先）
   async createDraft(dto: any, user: { userId: string; name: string; department?: string }, channel: 'paper' | 'electronic' = 'paper') {
     if (!dto.type) throw new BadRequestException('请选择作业类型');
     const t = getWorkPermitType(dto.type);
-    // 若由作业申请单进入，自动标记该申请单涉及危险作业，并预填基础信息
-    let parentApp: any = null;
-    if (dto.applicationId) {
-      const [app] = await this.db
-        .select()
-        .from(schema.workPermitApplications)
-        .where(eq(schema.workPermitApplications.id, dto.applicationId))
-        .limit(1);
-      parentApp = app || null;
-      // 仅危险作业票才将父申请单标记为「涉及危险作业」；
-      // 常规作业票（routine）绝不改动父单的 involvesHazardous，
-      // 否则会导致常规申请单提交时被误判为危险作业而强制要求"作业人"。
-      if (t.isHazardous) {
-        await this.db
-          .update(schema.workPermitApplications)
-          .set({ involvesHazardous: true, updatedAt: new Date() })
-          .where(eq(schema.workPermitApplications.id, dto.applicationId));
-      }
-    }
-    // 父单信息自动预填到作业票（仅复制 work_permits 表存在的字段，空值不覆盖）
-    const inherit: any = {};
-    if (parentApp) {
-      const map: [string, any][] = [
-        ['area', parentApp.area],
-        ['location', parentApp.location],
-        ['content', parentApp.content || parentApp.jobName || ''],
-        ['supervisorName', parentApp.supervisorName],
-        ['supervisorContact', parentApp.supervisorContact],
-        ['operatorNames', parentApp.operatorNames],
-        ['startTime', parentApp.planStart],
-        ['endTime', parentApp.planEnd],
-      ];
-      for (const [k, v] of map) {
-        if (v !== undefined && v !== null && v !== '') inherit[k] = v;
-      }
-    }
     // P0-8：危险作业票必须挂靠一张“已批准且未完成”的常规作业票（GWP）。
     // 由常规票详情页「继续开危险作业票」进入时自动带入 linkedRoutineId；
     // 从其他入口（作业票列表/新建页）进入时由用户手动选择，草稿阶段可为空，提交时强制校验。
@@ -209,13 +173,11 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
         applicantId: user.userId,
         applicantName: user.name,
         department: dto.department || user.department,
-        applicationId: dto.applicationId || null,
         linkedRoutineId: linked ? linked.id : null,
         linkedRoutineNo: linked ? linked.permitNo : null,
         expectedOperatorCount: !t.isHazardous && Number.isFinite(expected) && expected > 0 ? Math.floor(expected) : null,
         channel,
         status: 'draft',
-        ...inherit,
       })
       .returning({ id: schema.workPermits.id, permitNo: schema.workPermits.permitNo, isHazardous: schema.workPermits.isHazardous });
     return wp;
@@ -285,13 +247,12 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
         supervisorName: schema.workPermits.supervisorName,
         supervisorContact: schema.workPermits.supervisorContact,
         operatorNames: schema.workPermits.operatorNames,
-        contractorUnit: schema.workPermitApplications.contractorUnit,
+        contractorUnit: schema.workPermits.contractorUnit,
         expectedOperatorCount: schema.workPermits.expectedOperatorCount,
         approvalChain: schema.workPermits.approvalChain,
         checksCount: sql<number>`(SELECT count(*) FROM work_permit_checks WHERE work_permit_id = ${schema.workPermits.id})`,
       })
       .from(schema.workPermits)
-      .leftJoin(schema.workPermitApplications, eq(schema.workPermits.applicationId, schema.workPermitApplications.id))
       .where(and(...conds))
       .orderBy(desc(schema.workPermits.approvedAt))
       .limit(Number(query.limit) || 50);
@@ -430,19 +391,6 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
   // 提交申请
   async submit(id: string, user: any) {
     const wp = await this.ensure(id);
-    // 若由作业申请单进入的危险作业票，必须等父单审批通过（approved）后才能提交；
-    // 父单下达（printed）后仍可继续补开危险作业票，因此 approved 及之后的状态均允许。
-    // 常规作业票（非危险）可独立提交，不受父单审批状态约束。
-    if (wp.applicationId && wp.isHazardous) {
-      const [app] = await this.db
-        .select()
-        .from(schema.workPermitApplications)
-        .where(eq(schema.workPermitApplications.id, wp.applicationId))
-        .limit(1);
-      if (!app || ['draft', 'pending_review', 'reviewing'].includes(app.status)) {
-        throw new BadRequestException('请先完成作业申请单的审批，再提交危险作业票');
-      }
-    }
     if (!wp.content) throw new BadRequestException('请填写作业内容');
     if (!wp.location) throw new BadRequestException('请填写作业位置');
     // 作业人：仅危险作业必填；常规作业不要求（常规票仅填预计作业人数）
@@ -483,12 +431,6 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
         updatedAt: new Date(),
       })
       .where(eq(schema.workPermits.id, id));
-    // 驳回后重新提交：同步把关联申请单从 rejected 拉回待审（与工作票状态保持一致）
-    if (wp.applicationId) {
-      await this.db.update(schema.workPermitApplications)
-        .set({ status: 'pending_review', updatedAt: new Date() })
-        .where(eq(schema.workPermitApplications.id, wp.applicationId));
-    }
     // 会签第 1 步：通知申请部门主管审核（邮件含同意/拒绝按钮，48 小时有效）
     await this.sendStepApprovalMail({ ...wp, status: routing.firstStatus }, 'review');
     return {
@@ -509,11 +451,6 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
       // S14：CAS 条件更新（仅当状态仍为 pending_review 才生效），并发重复审批被拒
       await this.casUpdate(id, 'pending_review', { ...rej.patch, status: 'rejected', reviewerId: user.userId ?? null, reviewerName: user.name, reviewOpinion: dto.opinion, reviewedAt: new Date(), updatedAt: new Date() });
             // 驳回时同步更新关联申请单状态，让申请单页/列表/审批台统一显示驳回
-      if (wp.applicationId) {
-        await this.db.update(schema.workPermitApplications)
-          .set({ status: 'rejected', updatedAt: new Date() })
-          .where(eq(schema.workPermitApplications.id, wp.applicationId));
-      }
       await this.notifyRejected(wp, '申请部门主管审核', dto.opinion);
       return { success: true, status: 'rejected' };
     }
@@ -536,11 +473,6 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
       const rej = this.applyChain(wp, 'ehs', user, false, dto.opinion);
       await this.casUpdate(id, 'ehs_reviewing', { ...rej.patch, status: 'rejected', ehsApproverId: user.userId ?? null, ehsApproverName: user.name, ehsApprovalOpinion: dto.opinion, ehsApprovedAt: new Date(), updatedAt: new Date() });
             // 驳回时同步更新关联申请单状态，让申请单页/列表/审批台统一显示驳回
-      if (wp.applicationId) {
-        await this.db.update(schema.workPermitApplications)
-          .set({ status: 'rejected', updatedAt: new Date() })
-          .where(eq(schema.workPermitApplications.id, wp.applicationId));
-      }
       await this.notifyRejected(wp, 'EHS工程师审批', dto.opinion);
       return { success: true, status: 'rejected' };
     }
@@ -561,11 +493,6 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
       const rej = this.applyChain(wp, 'final', user, false, dto.opinion);
       await this.casUpdate(id, 'reviewing', { ...rej.patch, status: 'rejected', approverId: user.userId ?? null, approverName: user.name, approvalOpinion: dto.opinion, approvedAt: new Date(), updatedAt: new Date() });
             // 驳回时同步更新关联申请单状态，让申请单页/列表/审批台统一显示驳回
-      if (wp.applicationId) {
-        await this.db.update(schema.workPermitApplications)
-          .set({ status: 'rejected', updatedAt: new Date() })
-          .where(eq(schema.workPermitApplications.id, wp.applicationId));
-      }
       await this.notifyRejected(wp, '最终批准', dto.opinion);
       return { success: true, status: 'rejected' };
     }
@@ -628,8 +555,8 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * 申请单批准时由 WorkPermitApplicationsService 调用：
-   * 常规作业票随申请单批准自动批准，并生成作业码 + 一级安全培训考试二维码（复用 onApproved）。
+   * 常规作业票批准后触发（方案 B 单表：审批通过即在此处理，不再有“申请单批准→建票”环节）：
+   * 常规作业票批准后自动生成作业码 + 一级安全培训考试二维码（复用 onApproved）。
    * 危险作业票不在此处理（走各自三级审批）。
    */
   async autoApproveFromApplication(id: string) {
@@ -997,7 +924,6 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
           applicantId: wp.applicantId,
           applicantName: wp.applicantName,
           department: wp.department,
-          applicationId: wp.applicationId,
           area: wp.area,
           location: wp.location,
           content: wp.content,
@@ -1281,7 +1207,7 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
       }
     } else if (category === 'briefing') {
       c.push(eq(wp.status, 'printed'));
-      c.push(or(isNull(schema.safetyBriefings.applicationId), isNull(schema.safetyBriefings.briefedAt)));
+      c.push(or(isNull(schema.safetyBriefings.workPermitId), isNull(schema.safetyBriefings.briefedAt)));
     } else if (category === 'working') {
       c.push(eq(wp.status, 'printed'));
       c.push(isNotNull(schema.safetyBriefings.briefedAt));
@@ -1332,10 +1258,10 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
     let query: any = this.db.select().from(wp);
     let countQuery: any = this.db.select({ c: count() }).from(wp);
     // rows 始终联表 safetyBriefings：前端列表/作业票管理需要 briefingDone 区分交底中/作业中
-    query = query.leftJoin(schema.safetyBriefings, eq(wp.applicationId, schema.safetyBriefings.applicationId));
+    query = query.leftJoin(schema.safetyBriefings, eq(wp.id, schema.safetyBriefings.workPermitId));
     if (needJoin) {
       // 计数查询仅在分类条件引用 briefedAt 时需要联表，避免多行 briefings 造成重复计数
-      countQuery = countQuery.leftJoin(schema.safetyBriefings, eq(wp.applicationId, schema.safetyBriefings.applicationId));
+      countQuery = countQuery.leftJoin(schema.safetyBriefings, eq(wp.id, schema.safetyBriefings.workPermitId));
     }
 
     const [raw, totalRows] = await Promise.all([
@@ -1378,33 +1304,18 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
       .from(schema.inspectionRecords)
       .where(eq(schema.inspectionRecords.workPermitId, id))
       .orderBy(desc(schema.inspectionRecords.inspectedAt));
-    // 关联承包商安全培训记录（挂父申请单），便于前端展示“培训已完成/缺失”
-    let training: any = null;
-    let briefing: any = null;
-    let application: any = null;
-    if (wp.applicationId) {
-      const [app] = await this.db
-        .select()
-        .from(schema.workPermitApplications)
-        .where(eq(schema.workPermitApplications.id, wp.applicationId))
-        .limit(1);
-      application = app || null;
-      if (app?.trainingId) {
-        const [tr] = await this.db
-          .select()
-          .from(schema.workPermitTrainings)
-          .where(eq(schema.workPermitTrainings.id, app.trainingId))
-          .limit(1);
-        training = tr || null;
-      }
-      // 交底状态（safetyBriefings 挂申请单）
-      const [sb] = await this.db
-        .select()
-        .from(schema.safetyBriefings)
-        .where(eq(schema.safetyBriefings.applicationId, wp.applicationId))
-        .limit(1);
-      briefing = sb || null;
-    }
+    // 关联承包商安全培训记录（直接挂在作业票），便于前端展示“培训已完成/缺失”
+    const [training] = await this.db
+      .select()
+      .from(schema.workPermitTrainings)
+      .where(eq(schema.workPermitTrainings.workPermitId, id))
+      .limit(1);
+    // 交底状态（safetyBriefings 按作业票唯一）
+    const [briefing] = await this.db
+      .select()
+      .from(schema.safetyBriefings)
+      .where(eq(schema.safetyBriefings.workPermitId, id))
+      .limit(1);
     // 关联作业票：常规票→其下危险票列表；危险票→其依附的常规票（精简字段）
     let hazardPermits: any[] = [];
     let routinePermit: any = null;
@@ -1440,7 +1351,7 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
         .limit(1);
       routinePermit = rt || null;
     }
-    return { ...wp, certificates: certs, checks, inspections, training, briefing, application, hazardPermits, routinePermit };
+    return { ...wp, certificates: certs, checks, inspections, training, briefing, hazardPermits, routinePermit };
   }
 
   async myHistory(userId: string) {
@@ -1505,21 +1416,21 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
         id: wp.id,
         type: wp.type,
         isHazardous: wp.isHazardous,
-        applicationId: wp.applicationId,
+        workPermitId: wp.id,
         signatures: wp.signatures,
       })
       .from(wp)
       .where(and(...base, eq(wp.status, 'printed')));
 
-    // 关联交底完成时间（safetyBriefings 按 applicationId 唯一，Map 避免 join 重复行）
-    const appIds = [...new Set(printedRows.map((r) => r.applicationId).filter(Boolean))] as string[];
+    // 关联交底完成时间（safetyBriefings 按 workPermitId 唯一，Map 避免 join 重复行）
+    const wpIds = [...new Set(printedRows.map((r) => r.workPermitId).filter(Boolean))] as string[];
     let briefedMap = new Map<string, Date | null>();
-    if (appIds.length) {
+    if (wpIds.length) {
       const bs = await this.db
-        .select({ applicationId: schema.safetyBriefings.applicationId, briefedAt: schema.safetyBriefings.briefedAt })
+        .select({ workPermitId: schema.safetyBriefings.workPermitId, briefedAt: schema.safetyBriefings.briefedAt })
         .from(schema.safetyBriefings)
-        .where(inArray(schema.safetyBriefings.applicationId, appIds));
-      briefedMap = new Map(bs.map((b) => [b.applicationId, b.briefedAt ?? null]));
+        .where(inArray(schema.safetyBriefings.workPermitId, wpIds));
+      briefedMap = new Map(bs.map((b) => [b.workPermitId, b.briefedAt ?? null]));
     }
 
     let briefing = 0;
@@ -1527,7 +1438,7 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
     let inspection = 0;
     for (const r of printedRows) {
       const sigs = Array.isArray(r.signatures) ? r.signatures : [];
-      const briefed = r.applicationId ? !!briefedMap.get(r.applicationId) : false;
+      const briefed = r.workPermitId ? !!briefedMap.get(r.workPermitId) : false;
       // 交底任务：常规票未完成交底（危险票不交底，跳过）
       if (!r.isHazardous && !briefed) briefing++;
       // 签字任务：现场签字尚未完成（交底/签字签名缺失）
@@ -1601,7 +1512,7 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
       const cond = conds.length ? and(...conds) : undefined;
       const needJoin = cat === 'briefing' || cat === 'working';
       let q: any = this.db.select({ c: count() }).from(wp);
-      if (needJoin) q = q.leftJoin(schema.safetyBriefings, eq(wp.applicationId, schema.safetyBriefings.applicationId));
+      if (needJoin) q = q.leftJoin(schema.safetyBriefings, eq(wp.id, schema.safetyBriefings.workPermitId));
       const rows = await q.where(cond);
       result[cat] = Number(rows[0]?.c ?? 0);
     }
@@ -1697,12 +1608,10 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
     yesterday.setHours(0, 0, 0, 0);
     yesterday.setDate(yesterday.getDate() - 1);
     if (startDay > yesterday) return; // 当天开始的作业不查
-    const rows = wp.applicationId
-      ? await this.db
-          .select()
-          .from(schema.inspectionRecords)
-          .where(eq(schema.inspectionRecords.applicationId, wp.applicationId))
-      : [];
+    const rows = await this.db
+      .select()
+      .from(schema.inspectionRecords)
+      .where(eq(schema.inspectionRecords.workPermitId, wp.id));
     const covered = new Set(
       rows.map((r: any) => {
         const d = new Date(r.inspectedAt);
@@ -1738,24 +1647,13 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
   // P1-2：常规（非危险）作业票必须关联并完成承包商安全培训记录
   private async validateTraining(wp: any) {
     if (wp.isHazardous) return; // 危险作业票由特种作业证管控，不在此强制
-    if (!wp.applicationId) {
-      throw new BadRequestException('常规作业票须先关联作业申请单。');
-    }
-    const [app] = await this.db
-      .select()
-      .from(schema.workPermitApplications)
-      .where(eq(schema.workPermitApplications.id, wp.applicationId))
-      .limit(1);
-    if (!app || !app.trainingId) {
-      throw new BadRequestException('该常规作业票尚未关联承包商安全培训记录，无法打印/归档。请在对应作业申请单中补录培训记录。');
-    }
     const [tr] = await this.db
       .select()
       .from(schema.workPermitTrainings)
-      .where(eq(schema.workPermitTrainings.id, app.trainingId))
+      .where(eq(schema.workPermitTrainings.workPermitId, wp.id))
       .limit(1);
     if (!tr || !tr.testResult) {
-      throw new BadRequestException('承包商安全培训记录未完成（缺少考核结果），无法打印/归档。');
+      throw new BadRequestException('该常规作业票尚未关联承包商安全培训记录，无法打印/归档。');
     }
   }
 
@@ -1788,7 +1686,6 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
     const base = this.db
       .select({
         id: er.id,
-        applicationId: er.applicationId,
         workPermitId: er.workPermitId,
         contractorUnit: er.contractorUnit,
         workerName: er.workerName,

@@ -20,7 +20,7 @@ export class PublicActionsController {
   // 入厂登记：工人注册 + 培训核验
   @Post('worker-register')
   @HttpCode(200)
-  async workerRegister(@Body() body: { applicationId: string; contractorUnit: string; workerName: string; workerPhone?: string; workerIdCard?: string; signImg?: string }) {
+  async workerRegister(@Body() body: { workPermitId: string; contractorUnit: string; workerName: string; workerPhone?: string; workerIdCard?: string; signImg?: string }) {
     return this.svc.workerRegister(body);
   }
 

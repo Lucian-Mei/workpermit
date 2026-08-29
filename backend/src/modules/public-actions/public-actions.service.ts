@@ -6,7 +6,6 @@ import * as schema from '@/database/schema';
 import { getWorkPermitType } from '@/common/constants/domain';
 import { TokensService } from '@/modules/tokens/tokens.service';
 import { WorkPermitsService } from '@/modules/work-permits/work-permits.service';
-import { WorkPermitApplicationsService } from '@/modules/work-permit-applications/work-permit-applications.service';
 import { appBaseUrl } from '@/common/base-url';
 
 @Injectable()
@@ -15,7 +14,6 @@ export class PublicActionsService {
     @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
     private tokens: TokensService,
     private workPermits: WorkPermitsService,
-    private applications: WorkPermitApplicationsService,
   ) {}
 
   // 审批页信息（GET 展示用）
@@ -37,14 +35,10 @@ export class PublicActionsService {
     const user: any = { userId: null, name: '邮件审批' };
     const opinion = approve ? '邮件审批通过' : '邮件审批拒绝';
     let status: string;
-    if (t.targetType === 'work_permit') {
-      if (t.step === 'review') status = (await this.workPermits.review(t.targetId, { approve, opinion }, user)).status;
-      else if (t.step === 'approve_ehs') status = (await this.workPermits.approveEhs(t.targetId, { approve, opinion }, user)).status;
-      else status = (await this.workPermits.approve(t.targetId, { approve, opinion }, user)).status;
-    } else {
-      if (t.step === 'review') status = (await this.applications.review(t.targetId, { approve, opinion }, user)).status;
-      else status = (await this.applications.approve(t.targetId, { approve, opinion }, user)).status;
-    }
+    if (t.targetType !== 'work_permit') throw new BadRequestException('无效的审批目标');
+    if (t.step === 'review') status = (await this.workPermits.review(t.targetId, { approve, opinion }, user)).status;
+    else if (t.step === 'approve_ehs') status = (await this.workPermits.approveEhs(t.targetId, { approve, opinion }, user)).status;
+    else status = (await this.workPermits.approve(t.targetId, { approve, opinion }, user)).status;
     await this.tokens.markUsed(t.id, `邮件审批${ctx?.ip ? ` (${ctx.ip})` : ''}`);
     return { success: true, status, approved: approve };
   }
@@ -66,8 +60,7 @@ export class PublicActionsService {
     if (!dto.signImg) throw new BadRequestException('请先手写签名');
     const t = await this.tokens.getValid(token, 'mobile_sign');
     // 培训通用签字：不填姓名，签完一人确认后下一人继续（多人共用令牌）。
-    // 注意：createTrainingSignToken 写入的 targetId 是 trainingId（不是 applicationId），
-    // 因此这里直接按 trainingId 写入培训记录，不能调 signTraining（它用 ensure 按 applicationId 查表）。
+    // targetType=training 时按 trainingId 直接写入培训记录（方案 B 单表，培训记录直接挂在 work_permits 上）。
     // 多人并发签字：用 jsonb 拼接做原子追加，避免 read-modify-write 丢更新。
     if (t.targetType === 'training') {
       const [training] = await this.db
@@ -108,74 +101,69 @@ export class PublicActionsService {
       const label = wp ? getWorkPermitType(wp.type).label : '';
       return { permitNo: wp?.permitNo, status: wp?.status, applicantName: wp?.applicantName, typeLabel: label };
     }
-    const [app] = await this.db
-      .select({ permitNo: schema.workPermitApplications.permitNo, status: schema.workPermitApplications.status, applicantName: schema.workPermitApplications.applicantName })
-      .from(schema.workPermitApplications)
-      .where(eq(schema.workPermitApplications.id, targetId))
-      .limit(1);
-    return { permitNo: app?.permitNo, status: app?.status, applicantName: app?.applicantName, typeLabel: '作业申请单' };
+    throw new BadRequestException('无效的审批目标');
   }
 
   // 入厂核验：按 token 获取作业单信息
   async getEntryInfo(token: string) {
-    const [app] = await this.db
+    const [wp] = await this.db
       .select({
-        permitNo: schema.workPermitApplications.permitNo,
-        contractorUnit: schema.workPermitApplications.contractorUnit,
-        location: schema.workPermitApplications.location,
-        planStart: schema.workPermitApplications.planStart,
+        permitNo: schema.workPermits.permitNo,
+        contractorUnit: schema.workPermits.contractorUnit,
+        location: schema.workPermits.location,
+        planStart: schema.workPermits.startTime,
       })
-      .from(schema.workPermitApplications)
-      .where(eq(schema.workPermitApplications.entryQrToken, token))
+      .from(schema.workPermits)
+      .where(eq(schema.workPermits.entryQrToken, token))
       .limit(1);
-    if (!app) throw new BadRequestException('核验链接无效或已失效');
-    return app;
+    if (!wp) throw new BadRequestException('核验链接无效或已失效');
+    return wp;
   }
 
   // 入厂登记：获取可登记的作业任务列表（按看板QR进入）
   async getActiveApplications(token?: string) {
     const base = and(
-      eq(schema.workPermitApplications.status, 'printed'),
-      eq(schema.workPermitApplications.channel, 'electronic'),
+      eq(schema.workPermits.status, 'printed'),
+      eq(schema.workPermits.channel, 'electronic'),
     );
     // 培训二维码 token 绑定：扫哪张票的码，就只显示哪张票的任务（无 token 时显示全部，供看板/门卫使用）
     if (token) {
       const [wp] = await this.db
-        .select({ applicationId: schema.workPermits.applicationId })
+        .select({ id: schema.workPermits.id })
         .from(schema.workPermits)
         .where(eq(schema.workPermits.trainingQrToken, token))
         .limit(1);
-      if (!wp?.applicationId) return [];
+      if (!wp?.id) return [];
       return this.db
         .select({
-          id: schema.workPermitApplications.id,
-          permitNo: schema.workPermitApplications.permitNo,
-          jobName: schema.workPermitApplications.jobName,
-          contractorUnit: schema.workPermitApplications.contractorUnit,
-          location: schema.workPermitApplications.location,
+          id: schema.workPermits.id,
+          permitNo: schema.workPermits.permitNo,
+          jobName: schema.workPermits.jobName,
+          contractorUnit: schema.workPermits.contractorUnit,
+          location: schema.workPermits.location,
         })
-        .from(schema.workPermitApplications)
-        .where(and(base, eq(schema.workPermitApplications.id, wp.applicationId)))
+        .from(schema.workPermits)
+        .where(and(base, eq(schema.workPermits.id, wp.id)))
         .limit(1);
     }
     const rows = await this.db
       .select({
-        id: schema.workPermitApplications.id,
-        permitNo: schema.workPermitApplications.permitNo,
-        jobName: schema.workPermitApplications.jobName,
-        contractorUnit: schema.workPermitApplications.contractorUnit,
-        location: schema.workPermitApplications.location,
+        id: schema.workPermits.id,
+        permitNo: schema.workPermits.permitNo,
+        jobName: schema.workPermits.jobName,
+        contractorUnit: schema.workPermits.contractorUnit,
+        location: schema.workPermits.location,
       })
-      .from(schema.workPermitApplications)
+      .from(schema.workPermits)
       .where(base)
-      .orderBy(desc(schema.workPermitApplications.updatedAt))
+      .orderBy(desc(schema.workPermits.updatedAt))
       .limit(20);
     return rows;
   }
 
   // 入厂登记：工人填写信息 + 培训核验（S12：培训合格身份优先按身份证号匹配）
-  async workerRegister(dto: { applicationId: string; contractorUnit: string; workerName: string; workerPhone?: string; workerIdCard?: string; signImg?: string }) {
-    if (!dto.applicationId) throw new BadRequestException('缺少作业任务');
+  async workerRegister(dto: { workPermitId: string; contractorUnit: string; workerName: string; workerPhone?: string; workerIdCard?: string; signImg?: string }) {
+    if (!dto.workPermitId) throw new BadRequestException('缺少作业任务');
     if (!dto.workerName?.trim()) throw new BadRequestException('请填写姓���');
     const workerName = dto.workerName.trim();
     const idCard = (dto.workerIdCard || '').trim().toUpperCase() || null;
@@ -225,7 +213,7 @@ export class PublicActionsService {
     }
     // 写入登记记录
     const ins = await this.db.insert(schema.entryRegistrations).values({
-      applicationId: dto.applicationId,
+      workPermitId: dto.workPermitId,
       contractorUnit: dto.contractorUnit,
       workerName,
       workerPhone: dto.workerPhone || null,
@@ -240,13 +228,13 @@ export class PublicActionsService {
 
   // 入厂核验：提交姓名电话，记录核验
   async submitEntry(token: string, name: string, phone?: string) {
-    const [app] = await this.db
-      .select({ id: schema.workPermitApplications.id, permitNo: schema.workPermitApplications.permitNo })
-      .from(schema.workPermitApplications)
-      .where(eq(schema.workPermitApplications.entryQrToken, token))
+    const [wp] = await this.db
+      .select({ id: schema.workPermits.id, permitNo: schema.workPermits.permitNo })
+      .from(schema.workPermits)
+      .where(eq(schema.workPermits.entryQrToken, token))
       .limit(1);
-    if (!app) throw new BadRequestException('核验链接无效或已失效');
-    return { success: true, name, phone, permitNo: app.permitNo };
+    if (!wp) throw new BadRequestException('核验链接无效或已失效');
+    return { success: true, name, phone, permitNo: wp.permitNo };
   }
 
   // ===== 作业代码入场签到 =====
@@ -369,7 +357,6 @@ export class PublicActionsService {
 
       // 3) 放行并登记
       await this.db.insert(schema.entryRegistrations).values({
-        applicationId: (wp.applicationId as string) || null,
         workPermitId: wp.id,
         contractorUnit: wp.department || '',
         workerName,

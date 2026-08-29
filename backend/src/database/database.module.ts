@@ -13,7 +13,6 @@ export const PGLITE = Symbol('PGLITE_INSTANCE');
 
 import SAFETY_MEASURES from './safety-measures.data';
 import { dedupeChain } from '../modules/work-permits/approval-routing';
-import { permitNoPrefix } from '../common/constants/domain';
 
 /**
  * 数据库模块（双驱动）：
@@ -114,7 +113,6 @@ export class DatabaseModule implements OnModuleInit, OnApplicationBootstrap {
       ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS measure_selections jsonb;
       -- 员工账号：直属领导（自关联，删除领导时置空）
       ALTER TABLE users ADD COLUMN IF NOT EXISTS manager_id uuid REFERENCES users(id) ON DELETE SET NULL;
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS channel varchar(16) NOT NULL DEFAULT 'paper';
       CREATE TABLE IF NOT EXISTS measure_templates (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         type varchar(30) NOT NULL,
@@ -154,33 +152,8 @@ export class DatabaseModule implements OnModuleInit, OnApplicationBootstrap {
       CREATE INDEX IF NOT EXISTS idx_atoken_target ON action_tokens (target_type, target_id);
       -- 安全培训签字完成标记（培训人点击“完成培训签到”）
       ALTER TABLE work_permit_trainings ADD COLUMN IF NOT EXISTS sign_completed_at timestamptz;
-      -- 看板展示扩展字段（承包商 / 项目 / 管理部门 / 危险作业类型）
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS project_name varchar(255);
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS contractor_unit varchar(255);
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS contractor_head varchar(100);
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS contractor_phone varchar(50);
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS management_dept varchar(100);
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS management_person varchar(100);
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS hazard_type_list jsonb;
-      -- 申请单改版新字段（作业人数/材料/设备清单）
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS operator_count integer;
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS materials_list text;
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS equipment_list text;
       -- 默认通道改为 electronic（纸质已关闭）
-      ALTER TABLE work_permit_applications ALTER COLUMN channel SET DEFAULT 'electronic';
       ALTER TABLE work_permits ALTER COLUMN channel SET DEFAULT 'electronic';
-      -- 并行会签字段（区域负责人 + 承包商管理部门）
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS area_approver_id uuid REFERENCES users(id) ON DELETE SET NULL;
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS area_approver_name varchar(100);
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS area_approval_opinion text;
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS area_approved_at timestamptz;
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS dept_approver_id uuid REFERENCES users(id) ON DELETE SET NULL;
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS dept_approver_name varchar(100);
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS dept_approval_opinion text;
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS dept_approved_at timestamptz;
-      -- 入厂核验二维码
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS entry_qr_token varchar(64);
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS entry_qr_url text;
       -- 隐患模块增强字段
       ALTER TABLE departments ADD COLUMN IF NOT EXISTS default_rectifier_id uuid REFERENCES users(id) ON DELETE SET NULL;
       ALTER TABLE hazards ALTER COLUMN risk_level SET DEFAULT 'low';
@@ -246,20 +219,7 @@ export class DatabaseModule implements OnModuleInit, OnApplicationBootstrap {
       -- S12：培训合格身份以身份证号为唯一键（避免同名错认/冒领）
       ALTER TABLE training_records ADD COLUMN IF NOT EXISTS id_card varchar(50);
       CREATE INDEX IF NOT EXISTS idx_training_records_id_card ON training_records(id_card);
-      -- 工人入厂登记
-      CREATE TABLE IF NOT EXISTS entry_registrations (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        application_id uuid NOT NULL,
-        contractor_unit varchar(200) NOT NULL,
-        worker_name varchar(100) NOT NULL,
-        worker_phone varchar(50),
-        training_passed boolean NOT NULL DEFAULT false,
-        training_record_id uuid,
-        sign_img text,
-        registered_at timestamptz NOT NULL DEFAULT now(),
-        created_at timestamptz NOT NULL DEFAULT now()
-      );
-      CREATE INDEX IF NOT EXISTS idx_entry_registrations_app_id ON entry_registrations(application_id);
+      -- 工人入厂登记（表结构由主迁移 0000 创建，此处不再重复建表/挂 application_id）
       CREATE INDEX IF NOT EXISTS idx_entry_registrations_phone ON entry_registrations(worker_phone);
       -- 默认有效期 3 个月(90天)
       INSERT INTO training_config (key, value) SELECT 'validity_days', '90' WHERE NOT EXISTS (SELECT 1 FROM training_config WHERE key = 'validity_days');
@@ -280,7 +240,6 @@ export class DatabaseModule implements OnModuleInit, OnApplicationBootstrap {
       -- 4.1 入场登记增强：身份证号（考勤匹配唯一键）、闸口、申请单可空（独立危险票无申请单）
       ALTER TABLE entry_registrations ADD COLUMN IF NOT EXISTS worker_id_card varchar(50);
       ALTER TABLE entry_registrations ADD COLUMN IF NOT EXISTS gate varchar(50);
-      ALTER TABLE entry_registrations ALTER COLUMN application_id DROP NOT NULL;
       CREATE INDEX IF NOT EXISTS idx_entry_reg_wp ON entry_registrations(work_permit_id);
       CREATE INDEX IF NOT EXISTS idx_entry_reg_idcard ON entry_registrations(worker_id_card);
       -- 一次性迁移标记表（避免破坏性清理在每次启动时重复执行）
@@ -320,36 +279,7 @@ export class DatabaseModule implements OnModuleInit, OnApplicationBootstrap {
       -- 超期自动归档/缺资料标记：归档后资料不全置 true，补交后置 false
       ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS material_missing boolean NOT NULL DEFAULT false;
       ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS auto_archived_at timestamptz;
-      -- ===== 统一申请入口（P0 重构）：申请单携带 JSA / 安全措施 / 类型 / 关联常规票 =====
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS permit_type varchar(30) NOT NULL DEFAULT 'routine';
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS jsas jsonb;
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS safety_measures jsonb;
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS expected_operator_count integer;
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS linked_routine_id uuid;
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS linked_routine_no varchar(50);
-      ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS type varchar(30);
-      CREATE INDEX IF NOT EXISTS idx_wpa_linked_routine ON work_permit_applications(linked_routine_id);
-      -- 历史回填 type：有危险票的申请单按首张危险票类型推断
-      UPDATE work_permit_applications wpa SET type = (
-        SELECT wp.type FROM work_permits wp WHERE wp.application_id = wpa.id AND wp.is_hazardous = true AND wp.type IS NOT NULL LIMIT 1
-      ) WHERE wpa.type IS NULL AND wpa.involves_hazardous = true;
-      -- 历史数据回填 permit_type（含危险作业的申请单按首张关联危险票类型推断，否则 routine）
-      UPDATE work_permit_applications SET permit_type = 'routine' WHERE permit_type IS NULL OR permit_type = '';
-      -- 历史数据回填 jsas（从关联作业票搬回第一份，避免丢失既有 JSA）
-      UPDATE work_permit_applications wpa
-        SET jsas = (
-          SELECT wp.jsas
-          FROM work_permits wp
-          WHERE wp.application_id = wpa.id AND wp.jsas IS NOT NULL AND jsonb_array_length(wp.jsas) > 0
-          LIMIT 1
-        )
-        WHERE wpa.jsas IS NULL;
-      -- 历史数据回填 linked_routine（从关联特殊票反推常规申请单的关联常规票）
-      UPDATE work_permit_applications wpa
-        SET linked_routine_id = wp.linked_routine_id,
-            linked_routine_no = wp.linked_routine_no
-        FROM work_permits wp
-        WHERE wp.application_id = wpa.id AND wp.linked_routine_id IS NOT NULL AND wpa.linked_routine_id IS NULL;
+      -- ===== 统一申请入口（P0 重构）：方案 B 已彻底合并为单表 work_permits，不再有申请单表 =====
       -- 历史数据回填风险等级（高危三类=重大风险，其余危险作业=中等风险，常规=一般风险）
       UPDATE work_permits SET risk_level = 'high'
         WHERE is_hazardous = true AND type IN ('hot_work','confined_space','blind') AND risk_level = 'low';
@@ -370,22 +300,6 @@ export class DatabaseModule implements OnModuleInit, OnApplicationBootstrap {
        WHERE w.id = t.id
          AND NOT EXISTS (SELECT 1 FROM work_permits w2 WHERE w2.work_code = t.n::text);
     `);
-    // 孤儿作业票对账（仅统计、绝不删除）。
-    // 历史背景：系统早期把 work_permits 设计为 work_permit_applications 的“派生/同步镜像”（双模型兼容层），
-    // 并配套了“孤儿清理”——某申请单被删除时自动删掉其作业票，这正是作业票曾无故消失的根因。
-    // 现改为与隐患同等：作业票为独立业务实体，系统【绝不自动清理】。即便关联申请单已删除，作业票也保留。
-    await this.runOnce('audit_orphan_synced_permits_v1', async () => {
-      const { rows } = await this.pg.query(
-        `SELECT count(*)::int AS n FROM work_permits
-           WHERE channel = 'electronic'
-             AND application_id IS NOT NULL
-             AND application_id NOT IN (SELECT id FROM work_permit_applications);`,
-      );
-      const n = rows?.[0]?.n ?? 0;
-      if (n > 0) {
-        console.warn(`[migrate] 检测到 ${n} 张作业票的关联申请单已不存在（保留不删除，仅记录）`);
-      }
-    });
     // 数据修复（幂等、一次性）：审批链级去重。
     // 小组织常见「一人兼多职」（如安全主管与安全部门负责人同为刘洋），若链上出现同一审批人多次，
     // 合并为单一节点（被合并角色记入 mergedRoles），避免同一人对同一张票重复签两次。
@@ -415,51 +329,17 @@ export class DatabaseModule implements OnModuleInit, OnApplicationBootstrap {
     await this.runOnce('renumber_hazards_to_hz_v1', async () => {
       await this.renumberHazards();
     });
-    // 危险作业票提交前置：work_permit_applications 增加 guardian_signatures（幂等 ALTER，兼容旧库）
+    // 作业票合规字段幂等补列（方案 B 单表：监护人双签 / 楼栋 / 楼层直接挂在 work_permits 上；
+    // 新库由主迁移 0000 已包含，此处仅兼容旧库，不存在 work_permit_applications 表）
     if (this.pg) {
       try {
-        await (this.pg as any).query(
-          `ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS guardian_signatures jsonb DEFAULT '[]'::jsonb`,
-        );
-      } catch (e) {
-        console.warn(`[migrate] guardian_signatures 列创建失败（忽略）: ${(e as Error).message}`);
-      }
-      // 楼栋/楼层列（申请单 4 字段位置：楼栋/楼层/区域/具体位置，与隐患填报对齐）
-      try {
-        await (this.pg as any).query(`ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS building varchar(100)`);
-        await (this.pg as any).query(`ALTER TABLE work_permit_applications ADD COLUMN IF NOT EXISTS floor varchar(100)`);
+        await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS guardian_signatures jsonb DEFAULT '[]'::jsonb`);
         await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS building varchar(100)`);
         await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS floor varchar(100)`);
       } catch (e) {
-        console.warn(`[migrate] building/floor 列创建失败（忽略）: ${(e as Error).message}`);
-      }
-      // 编号规则：申请单 SQ- 前缀；作业票 GWP- 前缀。历史脏数据纠正：
-      //  1) 用 GWP-* 写入了申请单的 → 改 SQ-*
-      //  2) 用 SQ{YYYYMM}NNNN（无横线）老的 → 改 SQ-{YYYYMM}-NNNN（与新规一致）
-      try {
-        const upd1 = await (this.pg as any).query(
-          `UPDATE work_permit_applications
-             SET permit_no = REPLACE(permit_no, 'GWP-', 'SQ-')
-             WHERE permit_no LIKE 'GWP-%'`,
-        );
-        // 老无横线格式 SQ2026080016（12 字符）→ SQ-202608-0016
-        // LIKE 模式 SQ + 10 个下划线 = 12 字符匹配
-        const upd2 = await (this.pg as any).query(
-          `UPDATE work_permit_applications
-             SET permit_no = 'SQ-' || SUBSTR(permit_no, 3, 6) || '-' || SUBSTR(permit_no, 9)
-             WHERE permit_no LIKE 'SQ__________'`,
-        );
-        const total = (upd1?.rowCount || 0) + (upd2?.rowCount || 0);
-        if (total > 0) {
-          console.log(`[migrate] 申请单编号统一 SQ-*：GWP→SQ ${upd1?.rowCount || 0} 条 + 无横线→带横线 ${upd2?.rowCount || 0} 条`);
-        }
-      } catch (e) {
-        console.warn(`[migrate] 申请单编号修正失败（忽略）: ${(e as Error).message}`);
+        console.warn(`[migrate] 作业票合规字段补列失败（忽略）: ${(e as Error).message}`);
       }
     }
-    // 数据同步与双读校验已移至 onApplicationBootstrap：
-    // 必须等 SeedService 把演示申请单灌入之后再来同步/校验，否则迁移阶段申请单还是 0，
-    // 同步会写出 0 张作业票（即“重置后隐患在、作业票为 0”的根因）。
     await this.seedMeasureTemplates();
     // S07：refresh_tokens 表（刷新令牌轮换/吊销，支持单点登出与离职即时失效）
     // 明文令牌不落库，仅存 SHA-256 哈希；轮换时旧令牌置 revoked_at + replaced_by。
@@ -499,11 +379,6 @@ export class DatabaseModule implements OnModuleInit, OnApplicationBootstrap {
       'ck_work_permits_status',
     );
     await this.ensureStatusCheck(
-      'work_permit_applications', 'status',
-      ['draft', 'pending_review', 'reviewing', 'ehs_reviewing', 'approved', 'rejected', 'printed', 'paused', 'finished', 'completed', 'voided', 'converted'],
-      'ck_work_permit_applications_status',
-    );
-    await this.ensureStatusCheck(
       'hazards', 'status',
       ['pending_assign', 'assigned', 'rectifying', 'rectified', 'dept_confirmed', 'rejected', 'accepted', 'archived', 'cancelled'],
       'ck_hazards_status',
@@ -512,19 +387,14 @@ export class DatabaseModule implements OnModuleInit, OnApplicationBootstrap {
 
   /**
    * 应用启动完成阶段（所有模块 onModuleInit 之后，含 SeedService 灌入演示数据）：
-   * 在此做“申请单 → 作业票”同步与双模型双读校验，确保任何申请单（演示种子或运行时提交）
-   * 都已对应作业票，解决“重置后隐患在、作业票为 0”的时序问题。
+   * 方案 B 已彻底合并为单表 work_permits，不再有“申请单 → 作业票”同步，也不再双模型校验。
    */
   async onApplicationBootstrap() {
     if (!this.pg) return;
     try {
-      // 为所有作业票申请创建对应的 work_permit 记录（两页共享数据）
-      await this.syncWorkPermitsFromApplications();
-      // S15：双模型一致性“双读校验”（仅安全清理真正的孤儿票，不破坏合法数据）
-      await this.verifyDualModelConsistency();
-      console.log('[migrate] onApplicationBootstrap：申请单↔作业票同步与双读校验完成');
+      console.log('[migrate] onApplicationBootstrap：单表模型，无需申请单同步 / 双读校验');
     } catch (e) {
-      console.warn(`[migrate] onApplicationBootstrap 同步/校验失败（忽略）: ${(e as Error).message}`);
+      console.warn(`[migrate] onApplicationBootstrap 失败（忽略）: ${(e as Error).message}`);
     }
   }
 
@@ -620,133 +490,16 @@ export class DatabaseModule implements OnModuleInit, OnApplicationBootstrap {
   }
 
   /**
-   * S15 双读校验：申请单(work_permit_applications) 与作业票(work_permits) 双模型一致性检查。
-   * 仅读取 + 安全清理“真正的孤儿票”，绝不破坏任何合法数据，也不改写双模型结构；
-   * 符合文档“兼容层 + 双读校验、逐步合并”的路线（破坏性合并留待后续立项回归）。
-   * - 危险申请单缺对应作业票：仅告警（sync 已尽力补齐，残留说明需业务回归）。
-   * - 孤儿作业票（application_id 指向已删除的申请单）：安全删除（此类为垃圾残留，非业务数据）。
+   * 核心表存在性检查：方案 B 单表模型下，核心表为 users / work_permits / safety_briefings / inspection_records。
+   * 全部存在则跳过主迁移 SQL（0000），仅执行补充迁移。
    */
-  private async verifyDualModelConsistency() {
-    if (!this.pg) return;
-    const pg: any = this.pg;
-    try {
-      const hasHaz = await pg.query(
-        `SELECT count(*)::int AS n FROM work_permit_applications a
-          WHERE a.involves_hazardous = true
-            AND NOT EXISTS (SELECT 1 FROM work_permits w WHERE w.application_id = a.id)`,
-      );
-      const orphan = await pg.query(
-        `SELECT count(*)::int AS n FROM work_permits w
-          WHERE w.channel = 'electronic'
-            AND w.application_id IS NOT NULL
-            AND w.application_id NOT IN (SELECT id FROM work_permit_applications)`,
-      );
-      const nHaz = hasHaz.rows?.[0]?.n ?? 0;
-      const nOrphan = orphan.rows?.[0]?.n ?? 0;
-      if (nOrphan > 0) {
-        // 与隐患同等：作业票绝不自动清理。仅记录孤儿情况，不删除任何数据。
-        console.warn(`[migrate][S15] 检测到 ${nOrphan} 张孤儿作业票（关联申请单已删除），按策略保留不删除，仅记录`);
-      }
-      if (nHaz > 0) {
-        console.warn(`[migrate][S15] 双读校验告警：${nHaz} 条危险申请单缺少对应作业票（建议业务回归核查）`);
-      } else if (nOrphan === 0) {
-        console.log(`[migrate][S15] 双读校验通过：危险申请单均有对应作业票，无孤儿票`);
-      }
-    } catch (e) {
-      console.warn(`[migrate][S15] 双读校验执行失败（忽略）: ${(e as Error).message}`);
-    }
-  }
-
-  /**
-   * 为所有作业票申请创建对应的 work_permits 记录
-   * 实现作业票申请与作业票管理共享同一批数据
-   * 幂等：已有关联的跳过
-   */
-  private async syncWorkPermitsFromApplications() {
-    if (!this.pg) return;
-    const pg: any = this.pg;
-    // 找没有 work_permit 的作业票申请
-    const orphan = await pg.query(`
-      SELECT a.id, a.permit_no, a.job_name, a.content, a.area, a.location,
-             a.department, a.plan_start, a.plan_end, a.status,
-             a.involves_hazardous, a.hazard_type_list, a.operator_names, a.applicant_id, a.applicant_name
-      FROM work_permit_applications a
-      WHERE a.channel = 'electronic'
-        AND a.involves_hazardous = true
-        AND NOT EXISTS (SELECT 1 FROM work_permits w WHERE w.application_id = a.id)
-      ORDER BY a.created_at
-    `);
-    if (!orphan.rows?.length) return;
-
-    let synced = 0;
-    for (const app of orphan.rows) {
-      let type = 'other';
-      const jobName = app.job_name || '';
-      try {
-        const htl = app.hazard_type_list ? JSON.parse(app.hazard_type_list) : [];
-        if (htl.length > 0) {
-          const label = htl[0];
-          if (label.includes('动火')) type = 'hot_work';
-          else if (label.includes('高处')) type = 'high_altitude';
-          else if (label.includes('受限')) type = 'confined_space';
-          else if (label.includes('起重')) type = 'lifting';
-          else if (label.includes('临时')) type = 'temporary_electricity';
-          else if (label.includes('动土')) type = 'excavation';
-          else if (label.includes('盲板')) type = 'blind';
-        } else {
-          // 没有 hazardTypeList，根据 job_name 推测类型
-          if (jobName.includes('动火')) type = 'hot_work';
-          else if (jobName.includes('高处')) type = 'high_altitude';
-          else if (jobName.includes('受限')) type = 'confined_space';
-          else if (jobName.includes('起重') || jobName.includes('吊装')) type = 'lifting';
-          else if (jobName.includes('用电') || jobName.includes('配电')) type = 'temporary_electricity';
-          else if (jobName.includes('动土') || jobName.includes('挖掘') || jobName.includes('开挖')) type = 'excavation';
-          else if (jobName.includes('盲板')) type = 'blind';
-        }
-      } catch {}
-      const isHazardous = true; // 上面已过滤，只同步危险作业
-
-      // 生成唯一编号（正式规则：{类型前缀}-{YYYYMM}-{4位流水}，与业务 genPermitNo 一致，杜绝 ZY 旧格式）
-      const ym = `${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-      const prefix = `${permitNoPrefix(type)}-${ym}-`;
-      const [aRes, wRes] = await Promise.all([
-        pg.query(`SELECT permit_no FROM work_permit_applications WHERE permit_no LIKE $1 ORDER BY permit_no DESC LIMIT 1`, [`${prefix}%`]),
-        pg.query(`SELECT permit_no FROM work_permits WHERE permit_no LIKE $1 ORDER BY permit_no DESC LIMIT 1`, [`${prefix}%`]),
-      ]);
-      let seq = 1;
-      for (const res of [aRes, wRes]) {
-        if (res.rows?.length) {
-          const m = res.rows[0].permit_no.slice(prefix.length).match(/^\d+$/);
-          if (m) seq = Math.max(seq, parseInt(m[0], 10) + 1);
-        }
-      }
-      const wpNo = `${prefix}${String(seq).padStart(4, '0')}`;
-
-      const opNames = app.operator_names ? (() => { try { return JSON.parse(app.operator_names); } catch { return []; } })() : [];
-      await pg.query(`
-        INSERT INTO work_permits (permit_no, type, is_hazardous, channel, application_id,
-          area, location, content, department, start_time, end_time, status,
-          operator_names, applicant_id, applicant_name)
-        VALUES ($1,$2,$3,'electronic',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-      `, [wpNo, type, isHazardous, app.id,
-        app.area || '', app.location || '',
-        app.content || app.job_name || '', app.department || '',
-        app.plan_start || new Date(), app.plan_end || new Date(),
-        app.status || 'draft',
-        JSON.stringify(opNames), app.applicant_id, app.applicant_name || '',
-      ]);
-      synced++;
-    }
-    console.log(`[migrate] 已同步 ${synced} 条危险作业作业票申请到 work_permits`);
-  }
-
   private async hasCoreTables(): Promise<boolean> {
     try {
       const res = await this.pg.query(
-        "SELECT (SELECT to_regclass('public.users') IS NOT NULL) AS u, (SELECT to_regclass('public.work_permit_applications') IS NOT NULL) AS a, (SELECT to_regclass('public.safety_briefings') IS NOT NULL) AS b, (SELECT to_regclass('public.inspection_records') IS NOT NULL) AS i;",
+        "SELECT (SELECT to_regclass('public.users') IS NOT NULL) AS u, (SELECT to_regclass('public.work_permits') IS NOT NULL) AS w, (SELECT to_regclass('public.safety_briefings') IS NOT NULL) AS b, (SELECT to_regclass('public.inspection_records') IS NOT NULL) AS i;",
       );
       const r = res.rows?.[0];
-      return !!(r?.u && r?.a && r?.b && r?.i);
+      return !!(r?.u && r?.w && r?.b && r?.i);
     } catch {
       return false;
     }
