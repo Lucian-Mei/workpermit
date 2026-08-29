@@ -14,6 +14,7 @@ import { getWorkPermitType, permitDurationLimitHours, permitNoPrefix, requiredSi
 import { isSuperAdmin } from '@/common/permissions';
 import { emailByName, emailsByDepartment } from '@/common/user-helper';
 import { appBaseUrl } from '@/common/base-url';
+import { buildBriefingTemplate } from './briefing-template';
 import {
   ChainNode,
   ChainStage,
@@ -1184,8 +1185,13 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
     return rows;
   }
 
-  /** 危险作业提交前现场检查（单表合并后由作业票承载，原仅存在于申请单） */
-  async saveSiteInspection(id: string, dto: { inspector?: string; result?: string; note?: string }) {
+  // ================= 现场检查 / 巡检记录（单表合并后统一挂作业票）=================
+
+  /**
+   * 危险作业提交前现场检查（原仅存在于申请单）。
+   * 同时写 site_inspection 与巡检记录，保留"提交申请即产生巡检记录"的旧行为。
+   */
+  async saveSiteInspection(id: string, dto: { inspector?: string; result?: string; note?: string; photo?: string }) {
     const wp = await this.ensure(id);
     if (!wp.isHazardous) throw new BadRequestException('仅危险作业票需要现场检查');
     if (!dto.inspector?.trim()) throw new BadRequestException('请填写现场检查人');
@@ -1200,12 +1206,440 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
         } as any,
       })
       .where(eq(schema.workPermits.id, id));
+    await this.db.insert(schema.inspectionRecords).values({
+      workPermitId: id,
+      inspector: dto.inspector,
+      result: dto.result === 'abnormal' ? 'abnormal' : 'normal',
+      note: dto.note || null,
+      photo: dto.photo || null,
+      source: 'manual',
+    });
     return { success: true };
   }
 
-  async getSiteInspection(id: string) {
+  async listInspections(id: string) {
+    await this.ensure(id);
+    return this.db
+      .select()
+      .from(schema.inspectionRecords)
+      .where(eq(schema.inspectionRecords.workPermitId, id))
+      .orderBy(desc(schema.inspectionRecords.inspectedAt));
+  }
+
+  /** 上传纸质巡检记录扫描件 → OCR 回填（识别巡检人/时间，失败转人工） */
+  async addInspectionByOcr(id: string, file: Express.Multer.File, user: any) {
+    await this.ensure(id);
+    const saved = await this.files.save(file.buffer, file.originalname, file.mimetype);
+    const result = await this.ocr.recognize(file.buffer, file.mimetype);
+    const f = result.fields || {};
+    const inspector = f.inspector || f['巡检人'] || f.name || undefined;
+    const dateStr = f.date || f['时间'] || f['日期'] || undefined;
+    let inspectedAt = new Date();
+    if (dateStr) {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) inspectedAt = d;
+    }
+    const [rec] = await this.db
+      .insert(schema.inspectionRecords)
+      .values({
+        workPermitId: id,
+        inspector: inspector || user?.name,
+        result: 'normal',
+        note: result.needManual ? '扫描件无法自动识别，请人工核对巡检信息' : undefined,
+        photo: saved.filePath,
+        source: 'ocr',
+        ocrRaw: result.raw,
+        inspectedAt,
+        createdBy: user?.name,
+      })
+      .returning({ id: schema.inspectionRecords.id });
+    return {
+      success: true,
+      id: rec.id,
+      needManual: result.needManual,
+      ocrFields: f,
+      message: result.needManual ? '无法自动识别，已存档并转人工核对。' : '识别完成并已回填。',
+    };
+  }
+
+  async removeInspection(inspId: string) {
+    await this.db.delete(schema.inspectionRecords).where(eq(schema.inspectionRecords.id, inspId));
+    return { success: true };
+  }
+
+  // ================= 安全交底（单表合并后挂作业票，一张票一份）=================
+
+  async generateBriefingDraft(id: string) {
+    await this.ensure(id);
+    return { groups: buildBriefingTemplate() };
+  }
+
+  async upsertBriefing(id: string, dto: any) {
+    await this.ensure(id);
+    const patch: any = {};
+    const groups = dto.groups !== undefined ? dto.groups : dto.points;
+    if (groups !== undefined) patch.points = groups;
+    if (dto.signatures !== undefined) patch.signatures = dto.signatures;
+    if (dto.briefer !== undefined) patch.briefer = dto.briefer;
+    if (dto.content !== undefined) patch.content = dto.content;
+    if (dto.photos !== undefined) patch.photos = dto.photos;
+    const b = await this.upsertBriefingInternal(id, patch);
+    return { success: true, id: b.id };
+  }
+
+  private async upsertBriefingInternal(workPermitId: string, patch: any) {
+    const [existing] = await this.db
+      .select()
+      .from(schema.safetyBriefings)
+      .where(eq(schema.safetyBriefings.workPermitId, workPermitId))
+      .limit(1);
+    if (existing) {
+      await this.db.update(schema.safetyBriefings).set({ ...patch, updatedAt: new Date() }).where(eq(schema.safetyBriefings.id, existing.id));
+      return existing;
+    }
+    const [b] = await this.db
+      .insert(schema.safetyBriefings)
+      .values({ workPermitId, status: 'draft', ...patch })
+      .returning({ id: schema.safetyBriefings.id });
+    return b;
+  }
+
+  /** 现场交底提交：分组逐条勾选 + 设备工具正常/异常 + 双方手写签字 → status=done */
+  async submitBriefing(id: string, dto: any) {
+    await this.ensure(id);
+    const groups = dto.groups !== undefined ? dto.groups : dto.points;
+    if (!groups || groups.length === 0) throw new BadRequestException('交底内容为空，请先载入预设交底清单并勾选');
+    for (const g of groups) {
+      const items = g.items || [];
+      if (g.mode === 'choice') {
+        for (const it of items) {
+          if (!it.status) throw new BadRequestException(`「${g.title}」中的「${it.text}」未选择 正常/异常`);
+        }
+      } else if (g.key === 'hazard_types') {
+        if (!items.some((it: any) => it.checked)) {
+          throw new BadRequestException('请在「本次涉及的危险作业」中至少勾选一项（如不涉及危险作业，请勾选「无危险作业」）');
+        }
+      } else if (!items.some((it: any) => it.checked)) {
+        throw new BadRequestException(`「${g.title}」至少勾选一项`);
+      }
+    }
+    const sigs: Array<Record<string, any>> = dto.signatures || [];
+    const contractor = sigs.find((s) => s.role === 'contractor');
+    if (!contractor || !contractor.signImg) throw new BadRequestException('请采集承包商（负责人/作业人员）手写签名');
+    const workers = sigs.filter((s) => s.role === 'worker' && (s as any).signImg);
+    if (workers.length < 1) throw new BadRequestException('至少采集 1 位作业人员手写签名');
+    const patch: any = {
+      points: groups,
+      signatures: sigs,
+      photos: dto.photos ?? [],
+      status: 'done',
+      briefedAt: new Date(),
+      updatedAt: new Date(),
+    };
+    if (dto.briefer !== undefined) patch.briefer = dto.briefer;
+    if (dto.content !== undefined) patch.content = dto.content;
+    await this.upsertBriefingInternal(id, patch);
+    return { success: true, status: 'done' };
+  }
+
+  async getBriefing(id: string) {
+    await this.ensure(id);
+    const [b] = await this.db
+      .select()
+      .from(schema.safetyBriefings)
+      .where(eq(schema.safetyBriefings.workPermitId, id))
+      .limit(1);
+    return b ?? null;
+  }
+
+  /** AI 智能识别危害：按作业内容 + JSA 分析，返回建议打"推荐"标的风险文本 */
+  async aiSuggestHazards(id: string) {
     const wp = await this.ensure(id);
-    return (wp as any).siteInspection || null;
+    const jsas = Array.isArray(wp.jsas) ? wp.jsas : [];
+    const candidates = buildBriefingTemplate()
+      .filter((g) => ['env', 'equip', 'process'].includes(g.key))
+      .flatMap((g) => g.items.map((it) => it.text))
+      .filter((t) => !t.startsWith('其它'));
+    const content = wp.content || wp.jobName || '';
+    let hazards = await this.ai.analyzeBriefingHazards({ content, jsas, candidates });
+    // AI 不可用或返回空时：按关键词从 JSA/内容匹配候选（规则兜底）
+    if (!hazards || hazards.length === 0) {
+      const text = [content, ...jsas.map((j: any) => `${j?.step || ''} ${j?.hazard || ''} ${j?.control || ''}`)].join(' ').toLowerCase();
+      const kw: Record<string, string[]> = {
+        '天气因素（风雨雪雷电等）': ['风', '雨', '雪', '雷', '天气', '高温', '低温'],
+        '生物危害（虫蛇等）': ['虫', '蛇', '蚊', '生物'],
+        '附近存放化学品': ['化学品', '化学', '易燃物', '危险品', '溶剂', '酸碱', '储罐', '库'],
+        '交叉作业': ['交叉', '多单位', '同时作业', '相邻'],
+        '照度不足': ['照明', '光线', '夜间', '黑暗'],
+        '通道不顺畅': ['通道', '堵塞', '阻碍'],
+        '绊倒': ['绊', '障碍物', '杂物'],
+        '滑倒': ['滑', '油污', '积水', '湿滑'],
+        '行走失衡（沟槽、台阶、上下站立面落差大）': ['沟槽', '台阶', '落差', '坑'],
+        '设备储存的能量和压力': ['压力', '高压', '储罐', '气瓶', '能量'],
+        '有害物质': ['有害', '毒', '化学', '粉尘', '烟雾', '气体'],
+        '机械伤害（撞、割、挤压、缠绕、卷入）': ['机械', '切割', '卷入', '挤压', '缠绕', '转动', '设备'],
+        '高温烫伤': ['高温', '烫', '热源', '蒸汽'],
+        '带电体裸露（触电）': ['电', '触电', '漏电', '接线', '电气', '带电', '绝缘'],
+        '登高操作': ['登高', '高处', '高空', '梯子', '脚手架', '平台'],
+        '站立不稳': ['站立', '不稳'],
+        '尖角利边': ['尖角', '利边', '锐边'],
+        '拆装的部件不利抓握': ['抓握', '拆装', '部件'],
+        '重量危害': ['重', '搬运', '吊装', '起吊', '重物'],
+        '人工搬运（挤压、划伤）': ['搬运', '人工'],
+        '电动工具（触电、飞出物、刺伤）': ['电动', '工具', '电钻', '砂轮', '打磨机'],
+        '手动工具（砸伤、割伤、擦伤）': ['手动', '锤', '扳手', '刀具'],
+        '使用登高工具': ['登高工具', '梯子', '脚手架'],
+        '使用高压水枪或气体': ['高压水', '水枪', '压缩空气', '气'],
+        '电气操作（线路接驳、设备安装、检修）': ['电气', '接线', '线路', '检修', '安装'],
+        '切割、打磨（飞屑、断裂物飞出）': ['切割', '打磨', '飞屑', '打磨机', '切割机'],
+        '物体打击（坍塌、倾倒、掉落）': ['物体打击', '坍塌', '倾倒', '掉落', '砸'],
+        '用力过猛或工具使用不当，导致身体失衡、坠落': ['用力', '失衡', '坠落', '工具使用'],
+        '噪声': ['噪声', '噪音', '声音'],
+        '使用化学品（毒害、腐蚀、易燃）': ['化学品', '溶剂', '酸碱', '腐蚀', '易燃', '毒'],
+      };
+      hazards = Object.entries(kw)
+        .filter(([candidate, keys]) => keys.some((k) => text.includes(k)) && candidates.includes(candidate))
+        .map(([candidate]) => candidate)
+        .slice(0, 12);
+    }
+    return { hazards, candidates };
+  }
+
+  // ================= 承包商安全培训记录（单表合并后挂作业票）=================
+
+  private async findTraining(workPermitId: string) {
+    const [row] = await this.db
+      .select()
+      .from(schema.workPermitTrainings)
+      .where(eq(schema.workPermitTrainings.workPermitId, workPermitId))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async upsertTraining(id: string, dto: any) {
+    await this.ensure(id);
+    const patch: any = { updatedAt: new Date() };
+    const strFields = ['trainer', 'trainingTopics', 'testResult', 'remark'];
+    for (const f of strFields) if (dto[f] !== undefined) patch[f] = dto[f];
+    if (dto.traineeNames) patch.traineeNames = dto.traineeNames;
+    if (dto.traineeSignatures) patch.traineeSignatures = dto.traineeSignatures;
+    if (dto.trainingDate) patch.trainingDate = new Date(dto.trainingDate);
+    const existing = await this.findTraining(id);
+    if (existing) {
+      await this.db.update(schema.workPermitTrainings).set(patch).where(eq(schema.workPermitTrainings.id, existing.id));
+      return { success: true, id: existing.id };
+    }
+    const [t] = await this.db
+      .insert(schema.workPermitTrainings)
+      .values({ workPermitId: id, ...patch })
+      .returning({ id: schema.workPermitTrainings.id });
+    return { success: true, id: t.id };
+  }
+
+  /** 生成培训签字二维码令牌（多人共用，72 小时有效） */
+  async createTrainingSignToken(id: string) {
+    await this.ensure(id);
+    let training = await this.findTraining(id);
+    if (!training) {
+      const [t] = await this.db
+        .insert(schema.workPermitTrainings)
+        .values({ workPermitId: id })
+        .returning({ id: schema.workPermitTrainings.id });
+      training = { id: t.id } as any;
+    }
+    const { token, expiresAt } = await this.tokens.create({
+      purpose: 'mobile_sign',
+      targetType: 'training',
+      targetId: training.id,
+      role: 'trainee',
+      multi: true,
+      ttlHours: 72,
+    });
+    return { token, expiresAt, url: `${appBaseUrl()}/public/sign/${token}` };
+  }
+
+  /** 培训人点击"完成培训签到" */
+  async completeTrainingSign(id: string) {
+    await this.ensure(id);
+    const training = await this.findTraining(id);
+    if (!training) throw new BadRequestException('尚未创建培训记录，无法完成签到');
+    await this.db
+      .update(schema.workPermitTrainings)
+      .set({ signCompletedAt: new Date(), updatedAt: new Date() })
+      .where(eq(schema.workPermitTrainings.id, training.id));
+    return { success: true };
+  }
+
+  // ================= 作业看板 / 年度统计（单表合并后直接统计作业票）=================
+
+  async board(dateStr?: string, channel: 'paper' | 'electronic' = 'paper') {
+    await this.autoArchiveExpired();
+    const day = dateStr ? new Date(dateStr) : new Date();
+    const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0);
+    const end = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59);
+    const HZ_LABEL: Record<string, string> = {
+      hot_work: '动火作业',
+      confined_space: '受限空间',
+      high_altitude: '高处作业',
+      lifting: '吊装作业',
+      excavation: '挖掘作业',
+      temporary_electricity: '临时用电',
+      blind: '盲板抽堵',
+      other: '其它危险作业',
+    };
+    // 临时用电有效期 ≤15 天，不强制当日；其余危险作业票须当日
+    const isTodayWp = (w: any): boolean => {
+      if (w.type === 'temporary_electricity') return true;
+      const ps = w.startTime ? new Date(w.startTime) : null;
+      const pe = w.endTime ? new Date(w.endTime) : null;
+      if (ps && pe) return ps <= end && pe >= start;
+      return w.status === 'printed' || w.status === 'paused';
+    };
+    const activeCond = and(
+      eq(schema.workPermits.channel, channel),
+      sql`${schema.workPermits.status} in ('printed','paused','finished')`,
+    );
+    const routineRows = await this.db
+      .select()
+      .from(schema.workPermits)
+      .where(and(activeCond, eq(schema.workPermits.isHazardous, false)))
+      .orderBy(desc(schema.workPermits.printedAt));
+    const routineItems = routineRows.filter(isTodayWp).map((w: any) => ({
+      id: w.id,
+      kind: 'routine',
+      permitNo: w.permitNo,
+      hazards: [] as any[],
+      jobName: w.jobName || w.content || '常规作业',
+      projectName: w.projectName || '',
+      content: w.content || '',
+      location: w.location || '',
+      department: w.department || '',
+      applicantName: w.applicantName || '',
+      operatorNames: Array.isArray(w.operatorNames) ? w.operatorNames : [],
+      contractorUnit: w.contractorUnit || '',
+      contractorHead: w.contractorHead || '',
+      contractorPhone: w.contractorPhone || '',
+      managementDept: w.managementDept || w.department || '',
+      managementPerson: w.managementPerson || '',
+      hazardTypeList: [] as string[],
+      hazardType: null,
+      hazardTypeLabel: '',
+      involvesHazardous: false,
+      status: w.status,
+      planStart: w.startTime,
+      planEnd: w.endTime,
+      pausedByName: w.pausedByName,
+      pauseReason: w.pauseReason,
+      applicantId: w.applicantId,
+    }));
+    const wpRows = await this.db
+      .select()
+      .from(schema.workPermits)
+      .where(and(activeCond, eq(schema.workPermits.isHazardous, true)))
+      .orderBy(desc(schema.workPermits.printedAt));
+    const hazardItems = wpRows.filter(isTodayWp).map((w: any) => {
+      const label = HZ_LABEL[w.type] || w.type;
+      return {
+        id: w.id,
+        kind: 'hazard',
+        permitNo: w.permitNo,
+        jobName: w.jobName || w.content || '危险作业',
+        projectName: w.projectName || '',
+        content: w.content || '',
+        location: w.location || '',
+        department: w.department || '',
+        applicantName: w.applicantName || '',
+        operatorNames: Array.isArray(w.operatorNames) ? w.operatorNames : [],
+        contractorUnit: w.contractorUnit || '',
+        contractorHead: w.contractorHead || '',
+        contractorPhone: w.contractorPhone || '',
+        managementDept: w.managementDept || w.department || '',
+        managementPerson: w.managementPerson || '',
+        hazardTypeList: [label],
+        hazardType: w.type,
+        hazardTypeLabel: label,
+        involvesHazardous: true,
+        status: w.status,
+        planStart: w.startTime,
+        planEnd: w.endTime,
+        pausedByName: w.pausedByName,
+        pauseReason: w.pauseReason,
+        applicantId: w.applicantId,
+        linkedRoutineId: w.linkedRoutineId,
+        linkedRoutineNo: w.linkedRoutineNo,
+      };
+    });
+    // 危险票按「依附常规票」嵌套到对应常规票卡片内（仅进行中/已暂停的）
+    const hazardByRoutine = new Map<string, any[]>();
+    for (const h of hazardItems) {
+      if (h.status !== 'printed' && h.status !== 'paused') continue;
+      const key = h.linkedRoutineId || '';
+      if (!key) continue;
+      if (!hazardByRoutine.has(key)) hazardByRoutine.set(key, []);
+      hazardByRoutine.get(key)!.push(h);
+    }
+    for (const item of routineItems) item.hazards = hazardByRoutine.get(item.id) || [];
+    const items = [...routineItems].sort((a, b) => {
+      const ta = a.planStart ? new Date(a.planStart).getTime() : 0;
+      const tb = b.planStart ? new Date(b.planStart).getTime() : 0;
+      return tb - ta;
+    });
+    return {
+      date: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`,
+      total: items.length,
+      running: items.filter((a) => a.status === 'printed').length,
+      paused: items.filter((a) => a.status === 'paused').length,
+      items,
+    };
+  }
+
+  async annualStats(yearParam?: number) {
+    const year = yearParam || new Date().getFullYear();
+    const yStart = new Date(year, 0, 1);
+    const yEnd = new Date(year + 1, 0, 1);
+    const inYear = and(gte(schema.workPermits.createdAt, yStart), lt(schema.workPermits.createdAt, yEnd));
+    const wps = await this.db.select().from(schema.workPermits).where(inYear);
+    const byMonth: Record<string, number> = {};
+    const byDept: Record<string, number> = {};
+    const byContractor: Record<string, number> = {};
+    let voided = 0;
+    let paused = 0;
+    for (const w of wps) {
+      const m = new Date(w.createdAt).getMonth() + 1;
+      byMonth[m] = (byMonth[m] || 0) + 1;
+      if (w.department) byDept[w.department] = (byDept[w.department] || 0) + 1;
+      if (w.supervisorName) byContractor[w.supervisorName] = (byContractor[w.supervisorName] || 0) + 1;
+      if (w.status === 'voided') voided++;
+      if (w.pausedAt) paused++;
+    }
+    const byType: Record<string, number> = {};
+    for (const w of wps) {
+      if (!w.isHazardous) continue;
+      const label = getWorkPermitType(w.type).label;
+      byType[label] = (byType[label] || 0) + 1;
+    }
+    const inspRows = await this.db
+      .select({ inspectedAt: schema.inspectionRecords.inspectedAt })
+      .from(schema.inspectionRecords)
+      .where(and(gte(schema.inspectionRecords.inspectedAt, yStart), sql`${schema.inspectionRecords.inspectedAt} < ${yEnd}`));
+    const inspByMonth: Record<string, number> = {};
+    for (const r of inspRows) {
+      const m = new Date(r.inspectedAt).getMonth() + 1;
+      inspByMonth[m] = (inspByMonth[m] || 0) + 1;
+    }
+    return {
+      year,
+      totalApplications: wps.length,
+      totalPermits: wps.filter((w) => w.isHazardous).length,
+      totalInspections: inspRows.length,
+      voided,
+      paused,
+      byMonth: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, count: byMonth[i + 1] || 0 })),
+      byType: Object.entries(byType).map(([type, count]) => ({ type, count })),
+      byDept: Object.entries(byDept).map(([dept, count]) => ({ dept, count })).sort((a, b) => b.count - a.count),
+      byContractor: Object.entries(byContractor).map(([contractor, count]) => ({ contractor, count })).sort((a, b) => b.count - a.count),
+      inspByMonth: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, count: inspByMonth[i + 1] || 0 })),
+    };
   }
 
   // 列表（按权限）

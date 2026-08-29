@@ -47,7 +47,7 @@ export default function TrainingEditor({
     if (!testResult) { setErr('请选择考核结果'); return; }
     setSaving(true);
     try {
-      await api.post(`/e-applications/${appId}/training`, {
+      await api.post(`/e-permits/${appId}/training`, {
         trainer: trainer.trim(),
         trainingTopics: topics.trim(),
         testResult,
@@ -64,7 +64,7 @@ export default function TrainingEditor({
   async function genQr() {
     setErr(''); setQrBusy(true);
     try {
-      const { data } = await api.post(`/e-applications/${appId}/training/sign-tokens`, {});
+      const { data } = await api.post(`/e-permits/${appId}/training/sign-tokens`, {});
       setQr({ url: data.url });
     } catch (e: any) {
       setErr(e.response?.data?.message || '生成二维码失败');
@@ -76,7 +76,7 @@ export default function TrainingEditor({
   async function completeSign() {
     setCompleteMsg(''); setCompleting(true);
     try {
-      await api.post(`/e-applications/${appId}/training/complete-sign`, {});
+      await api.post(`/e-permits/${appId}/training/complete-sign`, {});
       setCompleteMsg('已完成培训签到');
       reload();
     } catch (e: any) {

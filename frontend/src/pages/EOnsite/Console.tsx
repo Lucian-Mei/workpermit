@@ -294,7 +294,7 @@ function BriefingTab({ d, canCheck, userName, reload, toast }: any) {
     (async () => {
       try {
         setAiLoading(true);
-        const { data } = await api.post(`/e-applications/${d.id}/briefing/ai-hazards`);
+        const { data } = await api.post(`/e-permits/${d.id}/briefing/ai-hazards`);
         if (!cancelled && Array.isArray(data?.hazards)) setAiHazards(data.hazards);
       } catch {
         /* AI 识别失败静默，不阻断交底 */
@@ -333,7 +333,7 @@ function BriefingTab({ d, canCheck, userName, reload, toast }: any) {
       (async () => {
         setLoadLoading(true);
         try {
-          const { data } = await api.post(`/e-applications/${d.id}/briefing/generate`);
+          const { data } = await api.post(`/e-permits/${d.id}/briefing/generate`);
           setGroups(data.groups || []);
         } catch {
           /* 载入失败不阻断，空态可重试 */
@@ -347,7 +347,7 @@ function BriefingTab({ d, canCheck, userName, reload, toast }: any) {
   async function reloadPreset() {
     setLoadLoading(true);
     try {
-      const { data } = await api.post(`/e-applications/${d.id}/briefing/generate`);
+      const { data } = await api.post(`/e-permits/${d.id}/briefing/generate`);
       setGroups(data.groups || []);
     } catch (e: any) {
       toast(e.response?.data?.message || '载入失败', true);
@@ -385,7 +385,7 @@ function BriefingTab({ d, canCheck, userName, reload, toast }: any) {
 
   async function saveDraft() {
     try {
-      await api.put(`/e-applications/${d.id}/briefing`, { groups, signatures, briefer, content, photos });
+      await api.put(`/e-permits/${d.id}/briefing`, { groups, signatures, briefer, content, photos });
       toast('交底内容已保存。');
       reload();
     } catch (e: any) {
@@ -458,7 +458,7 @@ function BriefingTab({ d, canCheck, userName, reload, toast }: any) {
     if (err) { setSubmitErr(err); toast(err, true); return; }
     setSubmitErr('');
     try {
-      await api.post(`/e-applications/${d.id}/briefing/submit`, { groups, signatures, briefer, content, photos });
+      await api.post(`/e-permits/${d.id}/briefing/submit`, { groups, signatures, briefer, content, photos });
       toast('现场交底已完成提交。');
       reload();
     } catch (e: any) {
@@ -971,7 +971,7 @@ function InspectionTab({ d, permit, canCheck, userName, reload, toast }: any) {
     try {
       const fd = new FormData();
       fd.append('file', files[0]);
-      const { data } = await api.post(`/e-applications/${d.id}/inspections/ocr`, fd);
+      const { data } = await api.post(`/e-permits/${d.id}/inspections/ocr`, fd);
       toast(data.message || '扫描件已上传。');
       reload();
     } catch (e: any) {
@@ -984,7 +984,7 @@ function InspectionTab({ d, permit, canCheck, userName, reload, toast }: any) {
   async function removeInsp(inspId: string) {
     if (!confirm('删除该巡检记录？')) return;
     try {
-      await api.delete(`/e-applications/${d.id}/inspections/${inspId}`);
+      await api.delete(`/e-permits/${d.id}/inspections/${inspId}`);
       reload();
     } catch (e: any) {
       toast(e.response?.data?.message || '删除失败', true);

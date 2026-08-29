@@ -188,8 +188,87 @@ export class EPermitsController {
   @Get(':id/inspections')
   @RequirePerms('epermit:view_all', 'epermit:view_own')
   @HttpCode(200)
-  async getSiteInspection(@Param('id') id: string) {
-    return this.svc.getSiteInspection(id);
+  async listInspections(@Param('id') id: string) {
+    return this.svc.listInspections(id);
+  }
+
+  // 纸质巡检记录扫描件 → OCR 回填
+  @Post(':id/inspections/ocr')
+  @RequirePerms('epermit:onsite_check', 'epermit:create')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  @HttpCode(200)
+  async addInspectionByOcr(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: any,
+  ) {
+    if (!file) throw new BadRequestException('未收到文件');
+    return this.svc.addInspectionByOcr(id, file, user);
+  }
+
+  @Delete(':id/inspections/:inspId')
+  @RequirePerms('epermit:onsite_check')
+  @HttpCode(200)
+  async removeInspection(@Param('id') id: string, @Param('inspId') inspId: string) {
+    return this.svc.removeInspection(inspId);
+  }
+
+  // ===== 安全交底（单表合并后挂作业票，一张票一份）=====
+  @Post(':id/briefing/generate')
+  @RequirePerms('epermit:onsite_check', 'epermit:create', 'epermit:view_all')
+  @HttpCode(200)
+  async generateBriefing(@Param('id') id: string) {
+    return this.svc.generateBriefingDraft(id);
+  }
+
+  @Get(':id/briefing')
+  @RequirePerms('epermit:onsite_check', 'epermit:view_all', 'epermit:view_own')
+  @HttpCode(200)
+  async getBriefing(@Param('id') id: string) {
+    return this.svc.getBriefing(id);
+  }
+
+  @Put(':id/briefing')
+  @RequirePerms('epermit:onsite_check', 'epermit:create')
+  @HttpCode(200)
+  async upsertBriefing(@Param('id') id: string, @Body() body: any) {
+    return this.svc.upsertBriefing(id, body);
+  }
+
+  @Post(':id/briefing/submit')
+  @RequirePerms('epermit:onsite_check', 'epermit:create')
+  @HttpCode(200)
+  async submitBriefing(@Param('id') id: string, @Body() body: any) {
+    return this.svc.submitBriefing(id, body);
+  }
+
+  @Post(':id/briefing/ai-hazards')
+  @RequirePerms('epermit:onsite_check', 'epermit:create')
+  @HttpCode(200)
+  async aiBriefingHazards(@Param('id') id: string) {
+    return this.svc.aiSuggestHazards(id);
+  }
+
+  // ===== 承包商安全培训记录（挂作业票）=====
+  @Post(':id/training')
+  @RequirePerms('epermit:create', 'epermit:onsite_check')
+  @HttpCode(200)
+  async upsertTraining(@Param('id') id: string, @Body() body: any) {
+    return this.svc.upsertTraining(id, body);
+  }
+
+  @Post(':id/training/sign-tokens')
+  @RequirePerms('epermit:create', 'epermit:onsite_check')
+  @HttpCode(200)
+  async createTrainingSignToken(@Param('id') id: string) {
+    return this.svc.createTrainingSignToken(id);
+  }
+
+  @Post(':id/training/complete-sign')
+  @RequirePerms('epermit:create', 'epermit:onsite_check')
+  @HttpCode(200)
+  async completeTrainingSign(@Param('id') id: string) {
+    return this.svc.completeTrainingSign(id);
   }
 
   @Post(':id/signatures')
@@ -300,6 +379,23 @@ export class EPermitsController {
   @HttpCode(200)
   async categoryStats(@Query() query: any, @CurrentUser() user: any) {
     return this.svc.categoryStats({ ...query, channel: 'electronic' }, user);
+  }
+
+  // 今日作业看板（大屏 / 手机端共用数据源）
+  // 声明在 @Get(':id') 之前，避免被通配路由吃掉
+  @Get('board/today')
+  @RequirePerms('epermit:view_all', 'epermit:view_own', 'board:view')
+  @HttpCode(200)
+  async boardToday(@Query('date') date: string) {
+    return this.svc.board(date, 'electronic');
+  }
+
+  // 年度作业统计
+  @Get('stats/annual')
+  @RequirePerms('work_permit:view_all')
+  @HttpCode(200)
+  async annualStats(@Query('year') year: string) {
+    return this.svc.annualStats(year ? Number(year) : undefined);
   }
 
   @Get(':id')

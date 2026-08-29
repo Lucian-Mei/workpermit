@@ -7,7 +7,7 @@ import dayjs from 'dayjs';
 
 // ============================================================
 // 手机端·今日作业看板（仅移动端展示）
-// - 数据源与桌面大屏看板一致：/api/e-applications/board/today?date=
+// - 数据源与桌面大屏看板一致：/api/e-permits/board/today?date=
 // - 桌面（≥768px）访问本页自动重定向到大屏看板 /e-board（满足"只有手机端才能看"）
 // - 入口：移动端底部导航「看板」→ /m-board
 // ============================================================
@@ -70,7 +70,7 @@ export default function MobileBoard() {
 
   const load = useCallback(async () => {
     try {
-      const { data: d } = await api.get('/e-applications/board/today', { params: { date } });
+      const { data: d } = await api.get('/e-permits/board/today', { params: { date } });
       setData(d);
     } finally {
       setLoading(false);

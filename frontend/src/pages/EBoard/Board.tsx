@@ -236,7 +236,7 @@ export default function EBoard() {
     setLoading(true);
     try {
       const [{ data }, entry] = await Promise.all([
-        api.get('/e-applications/board/today', { params: { date } }),
+        api.get('/e-permits/board/today', { params: { date } }),
         // 入场/签出统计：今日入厂 + 当前在厂（signOutAt 为空）
         api.get('/e-permits/entry-records', { params: { pageSize: 1 } }),
       ]);

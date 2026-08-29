@@ -21,7 +21,7 @@ export default function AnnualStats() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/e-applications/stats/annual', { params: { year } });
+      const { data } = await api.get('/e-permits/stats/annual', { params: { year } });
       setData(data);
     } finally {
       setLoading(false);
