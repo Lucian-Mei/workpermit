@@ -61,21 +61,7 @@ export const EPERMIT_CATEGORIES: { key: string; label: string; color: string }[]
   { key: 'archived', label: '已归档', color: '#64748b' },
 ];
 
-// 作业申请单 状态机
-export const WORK_PERMIT_APPLICATION_STATUS: Record<string, { label: string; color: string }> = {
-  draft: { label: '草稿', color: '#94a3b8' },
-  pending_review: { label: '待部门审核', color: '#f59e0b' },
-  reviewing: { label: '待经理批准', color: '#3b82f6' },
-  approved: { label: '已批准', color: '#22c55e' },
-  rejected: { label: '已驳回', color: '#ef4444' },
-  printed: { label: '执行中', color: '#0ea5e9' },
-  paused: { label: '已暂停', color: '#f97316' },
-  finished: { label: '完工待归档', color: '#14b8a6' },
-  completed: { label: '已归档', color: '#64748b' },
-  voided: { label: '已作废', color: '#dc2626' },
-};
-
-// 可在作业申请单下申请的危险作业类型
+// 可在作业票下申请的危险作业类型
 export const HAZARD_PERMIT_TYPES = ['hot_work', 'high_altitude', 'confined_space', 'lifting', 'excavation', 'temporary_electricity', 'blind'];
 
 // 现场签字角色（与后端 SIGN_ROLES 保持一致）

@@ -60,9 +60,7 @@ export default function EOnsiteInspections() {
         <Card>
           <CardContent className="space-y-2">
             {items.map((it) => {
-              const detailTo = it.workPermitId
-                ? `/e-permits/view/${it.workPermitId}`
-                : (it.applicationId ? `/e-applications/${it.applicationId}` : null);
+              const detailTo = it.workPermitId ? `/e-permits/view/${it.workPermitId}` : null;
               return (
                 <div
                   key={it.id}
@@ -78,7 +76,7 @@ export default function EOnsiteInspections() {
                         style={{ color: it.result === 'abnormal' ? 'var(--destructive)' : 'var(--success)' }}
                       />
                       <span className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
-                        {it.permitNo || it.applicationId}
+                        {it.permitNo || '—'}
                       </span>
                       <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                         · {it.inspector}

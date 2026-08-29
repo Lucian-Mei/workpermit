@@ -177,6 +177,21 @@ export class EPermitsController {
     return this.svc.listChecks(id);
   }
 
+  // 危险作业提交前现场检查（单表合并后由作业票承载，原仅存在于申请单）
+  @Post(':id/inspections')
+  @RequirePerms('epermit:create', 'epermit:onsite_check')
+  @HttpCode(200)
+  async saveSiteInspection(@Param('id') id: string, @Body() body: any) {
+    return this.svc.saveSiteInspection(id, body);
+  }
+
+  @Get(':id/inspections')
+  @RequirePerms('epermit:view_all', 'epermit:view_own')
+  @HttpCode(200)
+  async getSiteInspection(@Param('id') id: string) {
+    return this.svc.getSiteInspection(id);
+  }
+
   @Post(':id/signatures')
   @RequirePerms('epermit:onsite_check')
   @HttpCode(200)

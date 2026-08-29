@@ -9,7 +9,6 @@ import { QRCodeCanvas } from 'qrcode.react';
 
 interface EntryRecord {
   id: string;
-  applicationId: string | null;
   workPermitId: string | null;
   contractorUnit: string;
   workerName: string;

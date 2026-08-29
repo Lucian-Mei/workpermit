@@ -329,13 +329,14 @@ export class DatabaseModule implements OnModuleInit, OnApplicationBootstrap {
     await this.runOnce('renumber_hazards_to_hz_v1', async () => {
       await this.renumberHazards();
     });
-    // 作业票合规字段幂等补列（方案 B 单表：监护人双签 / 楼栋 / 楼层直接挂在 work_permits 上；
+    // 作业票合规字段幂等补列（方案 B 单表：监护人双签 / 楼栋 / 楼层 / 现场检查 直接挂在 work_permits 上；
     // 新库由主迁移 0000 已包含，此处仅兼容旧库，不存在 work_permit_applications 表）
     if (this.pg) {
       try {
         await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS guardian_signatures jsonb DEFAULT '[]'::jsonb`);
         await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS building varchar(100)`);
         await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS floor varchar(100)`);
+        await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS site_inspection jsonb`);
       } catch (e) {
         console.warn(`[migrate] 作业票合规字段补列失败（忽略）: ${(e as Error).message}`);
       }

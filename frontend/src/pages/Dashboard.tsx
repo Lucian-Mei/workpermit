@@ -121,7 +121,7 @@ function PanelHeader({ icon, title }: { icon: React.ReactNode; title: string }) 
 
 /* ======================= 今日待我处理 ======================= */
 const TODO_META: Record<string, { icon: React.ReactNode; color: string; to: string }> = {
-  approval: { icon: <Clock size={16} />, color: 'hsl(var(--warn-fg))', to: '/e-applications' },
+  approval: { icon: <Clock size={16} />, color: 'hsl(var(--warn-fg))', to: '/e-permits' },
   briefing: { icon: <ShieldCheck size={16} />, color: 'hsl(var(--info-fg))', to: '/e-onsite/list' },
   hazard: { icon: <AlertTriangle size={16} />, color: 'hsl(var(--danger-fg))', to: '/hazards' },
   dept_review: { icon: <AlertTriangle size={16} />, color: 'hsl(var(--danger-fg))', to: '/hazards' },

@@ -31,7 +31,7 @@ export default function EntryRegister() {
     setBusy(true); setErr('');
     try {
       const { data } = await api.post('/public/worker-register', {
-        applicationId: appId,
+        workPermitId: appId,
         contractorUnit: form.contractorUnit.trim(),
         workerName: form.workerName.trim(),
         workerPhone: form.workerPhone.trim() || undefined,
@@ -54,7 +54,7 @@ export default function EntryRegister() {
     setBusy(true); setErr('');
     try {
       const { data } = await api.post('/public/worker-register', {
-        applicationId: appId,
+        workPermitId: appId,
         contractorUnit: form.contractorUnit.trim(),
         workerName: form.workerName.trim(),
         workerPhone: form.workerPhone.trim() || undefined,

@@ -76,7 +76,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: <Smartphone size={18} />,
     items: [
       { to: '/stats/annual', label: '年度作业统计', icon: <BarChart3 size={16} />, perms: ['work_permit:view_all'] },
-      { to: '/e-applications', label: '作业票申请', icon: <FileSignature size={16} />, perms: ['epermit:create', 'epermit:view_all', 'epermit:view_own'] },
+      { to: '/e-permits/apply', label: '作业票申请', icon: <FileSignature size={16} />, perms: ['epermit:create', 'epermit:view_all', 'epermit:view_own'] },
       { to: '/work-permits', label: '常规作业管理', icon: <ClipboardList size={16} />, perms: ['epermit:view_all', 'epermit:view_own'] },
       { to: '/hazard-work-permits', label: '危险作业管理', icon: <AlertOctagon size={16} />, perms: ['epermit:view_all', 'epermit:view_own'] },
       { to: '/e-approval', label: '电子审批台', icon: <BadgeCheck size={16} />, perms: ['epermit:review', 'epermit:approve', 'epermit:approve_ehs', 'epermit:view_all'] },
@@ -118,7 +118,7 @@ const TITLE_MAP: Record<string, string> = {
   '/hazards/my': '我的隐患',
   '/hazards/acceptance': '验收管理',
   '/hazards/department': '部门隐患',
-  '/e-applications': '作业票申请',
+  '/e-permits/apply': '作业票申请',
   '/e-permits': '电子票台账',
   '/work-permits': '常规作业管理',
   '/hazard-work-permits': '危险作业管理',

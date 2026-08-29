@@ -6,7 +6,7 @@ import { Card, CardContent, Button, Input, Textarea, Modal, Badge } from '@/comp
 import { StatusPill, Section, Tag, Field } from '@/components/kit';
 import { SignaturePad } from '@/components/SignaturePad';
 import { PhotoUploader } from '@/components/PhotoUploader';
-import { WORK_PERMIT_APPLICATION_STATUS, WORK_PERMIT_STATUS, WORK_PERMIT_TYPES } from '@/constants';
+import { WORK_PERMIT_STATUS, WORK_PERMIT_TYPES } from '@/constants';
 import {
   Smartphone, ShieldCheck, ClipboardCheck, PenLine, Play, Pause, Ban, CheckCircle,
   Archive, ArrowLeft, Camera, RefreshCw, Trash2, Check, AlertTriangle, Sparkles,
@@ -66,23 +66,14 @@ export default function EOnsiteConsole() {
   const [msg, setMsg] = useState('');
 
   async function load() {
-    // 从作业票进入（?permit=票id）：先取票详情定位其申请单，巡检按票（票级检查记录）
-    if (permitParam) {
-      try {
-        const { data: wp } = await api.get(`/e-permits/${permitParam}`);
-        if (wp.applicationId) {
-          const { data } = await api.get(`/e-applications/${wp.applicationId}`);
-          setD({ ...data, currentPermit: wp });
-        } else {
-          setD({ ...wp, currentPermit: wp });
-        }
-      } catch (e: any) {
-        setErr(e.response?.data?.message || '加载失败');
-      }
-      return;
+    // 单表合并：统一按作业票 id 加载（?permit=票id 优先，否则用 /e-onsite/:id）
+    const targetId = permitParam || id;
+    try {
+      const { data: wp } = await api.get(`/e-permits/${targetId}`);
+      setD({ ...wp, currentPermit: wp });
+    } catch (e: any) {
+      setErr(e.response?.data?.message || '加载失败');
     }
-    const { data } = await api.get(`/e-applications/${id}`);
-    setD(data);
   }
   useEffect(() => { load(); }, [id, permitParam]);
 
@@ -98,7 +89,7 @@ export default function EOnsiteConsole() {
   const wpLiveStatus = d.currentPermit?.status;
   const st = (wpLiveStatus && WORK_PERMIT_STATUS[wpLiveStatus])
     ? WORK_PERMIT_STATUS[wpLiveStatus]
-    : (WORK_PERMIT_APPLICATION_STATUS[d.status] || { label: d.status, color: '#94a3b8' });
+    : (WORK_PERMIT_STATUS[d.status] || { label: d.status, color: '#94a3b8' });
   const missingHazard = d.missingHazardPermits || [];
   const canCheck = hasPerm(user, 'epermit:onsite_check');
   const canVoid = hasPerm(user, 'epermit:void');
@@ -962,7 +953,7 @@ function InspectionTab({ d, permit, canCheck, userName, reload, toast }: any) {
           note,
         });
       } else {
-        await api.post(`/e-applications/${d.id}/inspections`, {
+        await api.post(`/e-permits/${d.id}/inspections`, {
           inspector, result, note, photo: photo[0],
         });
       }
@@ -1153,14 +1144,13 @@ function ControlTab({ d, permit, canCheck, canPause, canVoid, reload, toast, nav
   const [voidOpen, setVoidOpen] = useState(false);
   const [reopen, setReopen] = useState(true);
 
-  // 从作业票进入（permit 上下文）：暂停/恢复/完工/归档写回 work_permits 票（详情页同步）；
-  // 从申请单直接进入：沿用申请单级接口（兼容旧入口）
+  // 单表合并：暂停/恢复/完工/归档统一写回作业票（permit 上下文优先）
   async function act(path: string, body?: any, okMsg?: string) {
     try {
-      const base = permit ? `/e-permits/${permit.id}` : `/e-applications/${d.id}`;
+      const base = `/e-permits/${permit?.id || d.id}`;
       const { data } = await api.put(`${base}/${path}`, body || {});
       toast(okMsg || '操作成功。');
-      if (data?.newId) { setTimeout(() => navigate(`/e-applications?id=${data.newId}`), 800); }
+      if (data?.newId) { setTimeout(() => navigate(`/e-permits/view/${data.newId}`), 800); }
       reload();
     } catch (e: any) {
       toast(e.response?.data?.message || '操作失败', true);
@@ -1173,7 +1163,7 @@ function ControlTab({ d, permit, canCheck, canPause, canVoid, reload, toast, nav
       <Card>
         <CardContent className="space-y-1 py-3 text-sm">
           <div className="flex justify-between"><span className="text-muted-foreground">当前状态</span>
-            <StatusPill color={(WORK_PERMIT_APPLICATION_STATUS[s] || {}).color}>{(WORK_PERMIT_APPLICATION_STATUS[s] || {}).label || s}</StatusPill>
+            <StatusPill color={(WORK_PERMIT_STATUS[s] || {}).color}>{(WORK_PERMIT_STATUS[s] || {}).label || s}</StatusPill>
           </div>
           {d.printedAt && <div className="flex justify-between"><span className="text-muted-foreground">开工时间</span><span>{dayjs(d.printedAt).format('MM-DD HH:mm')}</span></div>}
           {d.pausedAt && <div className="flex justify-between"><span className="text-muted-foreground">暂停</span><span>{d.pausedByName} · {dayjs(d.pausedAt).format('MM-DD HH:mm')}</span></div>}

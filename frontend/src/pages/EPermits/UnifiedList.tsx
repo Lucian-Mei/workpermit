@@ -4,7 +4,7 @@ import api, { hasPerm } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { Button, PageHeader, Select, EmptyState } from '@/components/ui';
 import { DataTable, MetricTile, StatStrip, FilterBar, SearchInput, StatusPill, Avatar, Tag } from '@/components/kit';
-import { WORK_PERMIT_STATUS, WORK_PERMIT_APPLICATION_STATUS, WORK_PERMIT_TYPES, EPERMIT_CATEGORIES } from '@/constants';
+import { WORK_PERMIT_STATUS, WORK_PERMIT_TYPES, EPERMIT_CATEGORIES } from '@/constants';
 import { ClipboardList, Trash2, Inbox, Plus, ListChecks, ShieldCheck, ClipboardCheck, Hammer, CheckCircle2, Archive, Play, Pause, FileWarning, Link2 } from 'lucide-react';
 import dayjs from 'dayjs';
 
@@ -179,7 +179,6 @@ export default function UnifiedTicketList({ onlyKind }: { onlyKind?: 'regular' |
   // 聚合虚拟状态（与 8 类卡片口径一致）：未完成 = 审批中+进行中+已暂停；进行中 = 交底中+作业中 = 全部 printed
   statusOptions.set('unfinished', '未完成');
   statusOptions.set('in_progress', '进行中');
-  Object.entries(WORK_PERMIT_APPLICATION_STATUS).forEach(([k, v]) => statusOptions.set(k, v.label));
   Object.entries(WORK_PERMIT_STATUS).forEach(([k, v]) => {
     if (!statusOptions.has(k)) statusOptions.set(k, v.label);
   });
@@ -198,7 +197,7 @@ export default function UnifiedTicketList({ onlyKind }: { onlyKind?: 'regular' |
         actions={
           <>
             {hasPerm(user, 'epermit:create') && (
-              <Button onClick={() => navigate('/e-applications')}>
+              <Button onClick={() => navigate('/e-permits/apply')}>
                 <Plus size={16} className="mr-1" /> 申请作业票
               </Button>
             )}
@@ -304,7 +303,7 @@ export default function UnifiedTicketList({ onlyKind }: { onlyKind?: 'regular' |
             key: 'status',
             header: '状态',
             render: (w) => {
-              const meta = WORK_PERMIT_STATUS[w.status] || WORK_PERMIT_APPLICATION_STATUS[w.status] || { label: w.status, color: '#94a3b8' };
+              const meta = WORK_PERMIT_STATUS[w.status] || { label: w.status, color: '#94a3b8' };
               return <StatusPill color={meta.color}>{meta.label}</StatusPill>;
             },
           },

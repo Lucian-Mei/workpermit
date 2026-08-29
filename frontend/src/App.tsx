@@ -1,6 +1,6 @@
 import React, { Suspense } from "react";
 import { lazyWithRetry } from "@/utils/lazyWithRetry";
-import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Layout from '@/components/Layout';
 
@@ -27,8 +27,7 @@ const EntryCheckIn = lazyWithRetry(() => import('@/pages/EntryCheckIn'));
 const EntryRecords = lazyWithRetry(() => import('@/pages/EPermits/EntryRecords'));
 const AnnualStats = lazyWithRetry(() => import('@/pages/Stats/Annual'));
 // 作业票（移动端优先，与纸质流程零耦合）
-const EApplicationList = lazyWithRetry(() => import('@/pages/EApplications/List'));
-const EApplicationDetail = lazyWithRetry(() => import('@/pages/EApplications/Detail'));
+const EPermitApply = lazyWithRetry(() => import('@/pages/EPermits/Apply'));
 const EApprovalList = lazyWithRetry(() => import('@/pages/EApproval/List'));
 const EPermitMy = lazyWithRetry(() => import('@/pages/EPermits/My'));
 const EPermitDetail = lazyWithRetry(() => import('@/pages/EPermits/Detail'));
@@ -41,11 +40,8 @@ const MobileBoard = lazyWithRetry(() => import('@/pages/MobileBoard'));
 const PublicSign = lazyWithRetry(() => import('@/pages/PublicSign'));
 const PublicApproval = lazyWithRetry(() => import('@/pages/Public/Approval'));
 
-// 旧入口 /e-permits/apply → 作业票申请（内嵌表单）
-function PermitApplyRedirect() {
-  const { id } = useParams();
-  return <Navigate to={id ? `/e-applications?id=${id}` : '/e-applications'} replace />;
-}
+// 作业票申请向导（单表合并后直接开作业票，无申请单层）
+
 
 export default function App() {
   return (
@@ -138,30 +134,27 @@ export default function App() {
         }
       />
       {/* 年度统计 */}
-      {/* 作业票申请：列表页内嵌申请表单（?type/routine/special/id 驱动），无独立 apply 路由 */}
+      {/* 作业票申请（单表合并后直接开作业票向导，无申请单层） */}
       <Route
-        path="/e-applications"
+        path="/e-permits/apply"
         element={
           <ProtectedRoute requirePerms={['epermit:create', 'epermit:view_all', 'epermit:view_own']}>
             <Layout>
-              <EApplicationList />
+              <EPermitApply />
             </Layout>
           </ProtectedRoute>
         }
       />
       <Route
-        path="/e-applications/:id"
+        path="/e-permits/apply/:id"
         element={
-          <ProtectedRoute requirePerms={['epermit:view_all', 'epermit:view_own']}>
+          <ProtectedRoute requirePerms={['epermit:create', 'epermit:view_all', 'epermit:view_own']}>
             <Layout>
-              <EApplicationDetail />
+              <EPermitApply />
             </Layout>
           </ProtectedRoute>
         }
       />
-      {/* 作业票申请统一入口（作业票申请）—— 旧路由 /e-permits/apply 重定向 */}
-      <Route path="/e-permits/apply" element={<Navigate to="/e-applications" replace />} />
-      <Route path="/e-permits/apply/:id" element={<PermitApplyRedirect />} />
       <Route
         path="/e-permits/view/:id"
         element={

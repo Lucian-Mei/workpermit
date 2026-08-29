@@ -314,13 +314,20 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
   async update(id: string, dto: any, user: any) {
     const wp = await this.ensure(id);
     const patch: any = { updatedAt: new Date() };
-    const strFields = ['area', 'location', 'content', 'supervisorName', 'supervisorContact', 'operatorContact'];
+    // 单表合并后全部表单字段均由作业票承载（原[方案A]分散在申请单）
+    const strFields = [
+      'area', 'location', 'content', 'supervisorName', 'supervisorContact', 'operatorContact',
+      'jobName', 'building', 'floor', 'department', 'managementDept', 'managementPerson',
+      'contractorUnit', 'contractorHead', 'contractorPhone',
+    ];
     for (const f of strFields) if (dto[f] !== undefined) patch[f] = dto[f];
     if (dto.startTime) patch.startTime = new Date(dto.startTime);
     if (dto.endTime) patch.endTime = new Date(dto.endTime);
     if (dto.operatorNames) patch.operatorNames = dto.operatorNames;
     if (dto.safetyMeasures) patch.safetyMeasures = dto.safetyMeasures;
     if (dto.jsas !== undefined) patch.jsas = dto.jsas;
+    // 危险作业监护人双签（驳回重提时复用已有签名）
+    if (dto.guardianSignatures !== undefined) patch.guardianSignatures = dto.guardianSignatures;
     // 常规票预计作业人数（P0-9）
     if (dto.expectedOperatorCount !== undefined && !wp.isHazardous) {
       const n = Number(dto.expectedOperatorCount);
@@ -1175,6 +1182,30 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
       .where(eq(schema.workPermitChecks.workPermitId, id))
       .orderBy(desc(schema.workPermitChecks.checkedAt));
     return rows;
+  }
+
+  /** 危险作业提交前现场检查（单表合并后由作业票承载，原仅存在于申请单） */
+  async saveSiteInspection(id: string, dto: { inspector?: string; result?: string; note?: string }) {
+    const wp = await this.ensure(id);
+    if (!wp.isHazardous) throw new BadRequestException('仅危险作业票需要现场检查');
+    if (!dto.inspector?.trim()) throw new BadRequestException('请填写现场检查人');
+    await this.db
+      .update(schema.workPermits)
+      .set({
+        siteInspection: {
+          inspector: dto.inspector,
+          result: dto.result || 'normal',
+          note: dto.note || '',
+          submittedAt: new Date().toISOString(),
+        } as any,
+      })
+      .where(eq(schema.workPermits.id, id));
+    return { success: true };
+  }
+
+  async getSiteInspection(id: string) {
+    const wp = await this.ensure(id);
+    return (wp as any).siteInspection || null;
   }
 
   // 列表（按权限）

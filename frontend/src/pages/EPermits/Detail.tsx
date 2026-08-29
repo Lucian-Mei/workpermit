@@ -103,17 +103,17 @@ export default function EPermitDetail() {
         icon={<ClipboardList size={20} />}
         actions={
           <>
-            {/* P0 统一入口：编辑作业票一律跳转到统一申请页（基于申请单 id）；已批准票进入查看页 */}
-            {canEdit && <Button variant="secondary" onClick={() => navigate(`/e-applications?id=${d.applicationId || id}`)}>编辑</Button>}
+            {/* 单表合并：编辑作业票直接跳转作业票申请向导（基于作业票 id） */}
+            {canEdit && <Button variant="secondary" onClick={() => navigate(`/e-permits/apply/${id}`)}>编辑</Button>}
             {/* P0-8：常规作业票已批准且未完成时，可直接开具挂靠其下的危险作业票 */}
             {canOpenSpecial && (
-              <Button variant="secondary" onClick={() => navigate(`/e-applications?type=special&routine=${id}`)}>
+              <Button variant="secondary" onClick={() => navigate(`/e-permits/apply?type=special&routine=${id}`)}>
                 <Link2 size={16} className="mr-1" /> 开危险作业票
               </Button>
             )}
             {/* 现场快捷入口：未交底的常规票进入交底；交底完成或危险票进入现场检查 */}
             {(d.status === 'approved' || d.status === 'printed' || d.status === 'paused') && (
-              <Button variant="secondary" onClick={() => navigate(`/e-onsite/${d.applicationId || id}?permit=${id}&tab=${!d.isHazardous && !d.briefing?.briefedAt ? 'briefing' : 'inspection'}`)}>
+              <Button variant="secondary" onClick={() => navigate(`/e-onsite/${id}?permit=${id}&tab=${!d.isHazardous && !d.briefing?.briefedAt ? 'briefing' : 'inspection'}`)}>
                 <Smartphone size={16} className="mr-1" />
                 {!d.isHazardous && !d.briefing?.briefedAt ? '进入现场交底' : '进入现场检查'}
               </Button>
@@ -332,7 +332,7 @@ export default function EPermitDetail() {
                       </div>
                       <div className="flex shrink-0 gap-1.5">
                         <Button variant="ghost" size="sm" onClick={() => navigate(`/e-permits/view/${d.routinePermit.id}`)}>查看</Button>
-                        <Button size="sm" onClick={() => navigate(`/e-onsite/${d.routinePermit.applicationId || d.routinePermit.id}?permit=${d.routinePermit.id}&tab=inspection`)}>
+                        <Button size="sm" onClick={() => navigate(`/e-onsite/${d.routinePermit.id}?permit=${d.routinePermit.id}&tab=inspection`)}>
                           <ClipboardCheck size={14} className="mr-1" /> 现场检查
                         </Button>
                       </div>
@@ -361,7 +361,7 @@ export default function EPermitDetail() {
                         <div className="flex shrink-0 gap-1.5">
                           <Button variant="ghost" size="sm" onClick={() => navigate(`/e-permits/view/${h.id}`)}>查看</Button>
                           {(h.status === 'printed' || h.status === 'paused') && (
-                            <Button size="sm" onClick={() => navigate(`/e-onsite/${h.applicationId || h.id}?permit=${h.id}&tab=inspection`)}>
+                            <Button size="sm" onClick={() => navigate(`/e-onsite/${h.id}?permit=${h.id}&tab=inspection`)}>
                               <ClipboardCheck size={14} className="mr-1" /> 现场检查
                             </Button>
                           )}

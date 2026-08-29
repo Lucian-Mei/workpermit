@@ -2,7 +2,7 @@ import React from 'react';
 import dayjs from 'dayjs';
 import { Card, CardContent } from '@/components/ui';
 import { Section } from '@/components/kit';
-import { WORK_PERMIT_STATUS, WORK_PERMIT_APPLICATION_STATUS } from '@/constants';
+import { WORK_PERMIT_STATUS } from '@/constants';
 import { ShieldCheck } from 'lucide-react';
 
 type Channel = 'permit' | 'application';
@@ -16,7 +16,8 @@ interface Props {
 
 // 审批进度树（状态机可视化）。危险作业票多一环「待EHS批准」。
 export default function ApprovalFlow({ channel, isHazardous, status, data }: Props) {
-  const map = channel === 'permit' ? WORK_PERMIT_STATUS : WORK_PERMIT_APPLICATION_STATUS;
+  // 单表合并后统一使用作业票状态机（原申请单状态机已删除）
+  const map = WORK_PERMIT_STATUS;
   const firstReviewerRole = channel === 'permit' ? '申请部门主管' : '区域部门审核人';
 
   // 线性节点路径（暂停/作废单独处理）

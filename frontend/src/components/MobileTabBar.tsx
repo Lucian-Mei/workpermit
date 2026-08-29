@@ -10,7 +10,7 @@ import { hasPerm } from '@/api/client';
 // ============================================================
 
 export interface MobileTabItem {
-  to: string; // 完整路由（可带 query，如 /e-applications?type=routine）
+  to: string; // 完整路由（可带 query，如 /e-permits/apply?type=routine）
   label: string;
   icon: any;
   perms?: string[]; // 任一命中即可见
@@ -48,7 +48,7 @@ export const MOBILE_TABS: MobileTab[] = [
     menu: [
       { to: '/hazards/report', label: '隐患填报', icon: PenTool, perms: ['hazard:create'] },
       // 作业申请统一入口：进入作业票申请页，先选「常规作业 / 危险作业(8类)」再进入对应申请表单
-      { to: '/e-applications', label: '新增作业申请', icon: FilePlus2, perms: ['epermit:create', 'epermit:view_all', 'epermit:view_own'] },
+      { to: '/e-permits/apply', label: '新增作业申请', icon: FilePlus2, perms: ['epermit:create', 'epermit:view_all', 'epermit:view_own'] },
     ],
   },
   {
@@ -75,7 +75,7 @@ function hasAnyPerm(user: any, perms?: string[]) {
   return perms.some((p) => hasPerm(user, p));
 }
 
-/** 路由匹配：支持带 query 的 to（如 /e-applications?type=routine） */
+/** 路由匹配：支持带 query 的 to（如 /e-permits/apply?type=routine） */
 function isPathActive(pathname: string, to: string): boolean {
   const path = to.split('?')[0];
   if (path === '/') return pathname === '/';

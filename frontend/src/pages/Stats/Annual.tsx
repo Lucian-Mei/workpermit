@@ -84,7 +84,7 @@ export default function AnnualStats() {
       ) : (
         <>
           <StatStrip>
-            <MetricTile label="作业申请单" value={data.totalApplications} color="#0ea5e9" icon={<BarChart3 size={18} />} onClick={() => navigate('/e-applications')} />
+            <MetricTile label="作业票总数" value={data.totalApplications} color="#0ea5e9" icon={<BarChart3 size={18} />} onClick={() => navigate('/e-permits')} />
             <MetricTile label="危险作业票" value={data.totalPermits} color="#f59e0b" onClick={() => navigate('/e-permits')} />
             <MetricTile label="巡检记录" value={data.totalInspections} color="#22c55e" icon={<ClipboardCheck size={18} />} onClick={() => navigate('/e-onsite/inspections')} />
             <MetricTile label="作废 / 暂停" value={`${data.voided} / ${data.paused}`} color="#ef4444" icon={<Ban size={18} />} onClick={() => navigate('/e-permits?status=voided,paused')} />

@@ -48,7 +48,7 @@ export default function EApplicationApply() {
   const navigate = useNavigate();
   const { id: editId } = useParams();
   const [params] = useSearchParams();
-  // 内嵌模式（/e-applications 列表页 query 驱动）也支持：id 从 query 读
+  // 独立/内嵌模式（/e-permits/apply query 驱动）也支持：id 从 query 读
   const isEditing = Boolean(editId || params.get('id'));
   const effectiveEditId = editId || params.get('id') || '';
   const routineFromUrl = params.get('routine') || '';
@@ -64,13 +64,12 @@ export default function EApplicationApply() {
   });
   const [specialType, setSpecialType] = useState(() => params.get('special') || '');
 
-  const [appId, setAppId] = useState('');
   const [permitNo, setPermitNo] = useState('');
   const [wpCreated, setWpCreated] = useState(false);
   const [wpId, setWpId] = useState(''); // 关联的作业票 id（提交时需同步 submit 进作业管理列表）
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
-  const [appStatus, setAppStatus] = useState('');
+  const [wpStatus, setWpStatus] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
@@ -226,93 +225,56 @@ export default function EApplicationApply() {
       .finally(() => setMeasuresLoaded(true));
   }, [isHazard, specialType]);
 
-  // 编辑模式：先试申请单，404 则试作业票（草稿票可能没有对应申请单）
+  // 编辑模式：直接加载作业票（单表合并后无申请单层）
   useEffect(() => {
     if (!effectiveEditId) return;
     setLoading(true);
-    api.get(`/e-applications/${effectiveEditId}`).then(({ data }) => {
-      setAppStatus(data.status);
-      // 驳回时拼接驳回意见（依次为部门/EHS/经理，取最后一个非空）
-      if (data.status === 'rejected') {
-        // 申请单层面（部门/合同/EHS）+ 关联作业票（review/approve）的驳回意见
+    api.get(`/e-permits/${effectiveEditId}`).then(({ data: wp }) => {
+      setWpStatus(wp.status);
+      // 驳回时拼接驳回意见（部门/EHS/经理，取最后一个非空）
+      if (wp.status === 'rejected') {
         const reasons = [
-          data.areaApprovalOpinion, data.contractApprovalOpinion, data.ehsApprovalOpinion, data.approvalOpinion,
-          ...((data.workPermits || []).map((w: any) => [w.reviewOpinion, w.ehsApprovalOpinion, w.approvalOpinion])).flat(),
+          wp.reviewOpinion, wp.ehsApprovalOpinion, wp.approvalOpinion,
+          wp.areaApprovalOpinion, wp.contractApprovalOpinion,
         ].map((s: any) => (typeof s === 'string' ? s.trim() : '')).filter(Boolean);
         setRejectReason(reasons.join(' / '));
       } else {
         setRejectReason('');
       }
-      setAppId(data.id); setPermitNo(data.permitNo);
-      const special = data.permitType === 'special';
-      setMode(special ? 'special' : 'routine');
-      if (special) {
-        const wp = (data.workPermits || []).find((w: any) => w.isHazardous);
-        if (wp?.type) setSpecialType(wp.type);
-        if (data.linkedRoutineId) setLinkedRoutineId(data.linkedRoutineId);
-      }
+      const isHazardWp = wp.isHazardous;
+      setMode(isHazardWp ? 'special' : 'routine');
+      if (isHazardWp && wp.type) setSpecialType(wp.type);
+      if (wp.linkedRoutineId) setLinkedRoutineId(wp.linkedRoutineId);
+      setWpId(wp.id); setWpCreated(true); setPermitNo(wp.permitNo);
       setForm({
-        jobName: data.jobName || '', department: data.department || '', building: data.building || '', floor: data.floor || '', area: data.area || '', location: data.location || '',
-        planStart: data.planStart ? dayjs(data.planStart).format('YYYY-MM-DDTHH:mm') : '',
-        planEnd: data.planEnd ? dayjs(data.planEnd).format('YYYY-MM-DDTHH:mm') : '',
-        operatorNames: (data.operatorNames || []).join(', '), supervisorName: data.supervisorName || '',
-        supervisorContact: data.supervisorContact || '', content: data.content || '',
-        contractorUnit: data.contractorUnit || '', contractorHead: data.contractorHead || '',
-        contractorPhone: data.contractorPhone || '', operatorCount: data.operatorCount || '',
-        managementDept: data.managementDept || '', managementPerson: data.managementPerson || '',
-        guardianSignatures: [],
+        jobName: wp.jobName || '', department: wp.department || '', building: wp.building || '', floor: wp.floor || '', area: wp.area || '', location: wp.location || '',
+        planStart: wp.startTime ? dayjs(wp.startTime).format('YYYY-MM-DDTHH:mm') : '',
+        planEnd: wp.endTime ? dayjs(wp.endTime).format('YYYY-MM-DDTHH:mm') : '',
+        operatorNames: (wp.operatorNames || []).join(', '), supervisorName: wp.supervisorName || '',
+        supervisorContact: wp.supervisorContact || '', content: wp.content || '',
+        contractorUnit: wp.contractorUnit || '', contractorHead: wp.contractorHead || '',
+        contractorPhone: wp.contractorPhone || '',
+        operatorCount: wp.expectedOperatorCount != null ? String(wp.expectedOperatorCount) : '',
+        managementDept: wp.managementDept || '', managementPerson: wp.managementPerson || '',
+        guardianSignatures: wp.guardianSignatures || [],
       });
-      if (Array.isArray(data.jsas) && data.jsas.length) setJsas(data.jsas);
-      if (Array.isArray(data.steps) && data.steps.length) setSteps(data.steps);
-      if (Array.isArray(data.safetyMeasures) && data.safetyMeasures.length) {
+      if (Array.isArray(wp.jsas) && wp.jsas.length) setJsas(wp.jsas);
+      if (Array.isArray(wp.measureSelections) && wp.measureSelections.length) {
         const byPhase: any = { pre: [], during: [], post: [] };
-        data.safetyMeasures.forEach((m: any, i: number) => {
+        wp.measureSelections.forEach((m: any, i: number) => {
           const grp = byPhase[m.phase || 'pre'] || (byPhase[m.phase || 'pre'] = []);
           grp.push({ id: m.id || `m${i}`, content: m.content, note: m.note || '', checked: !!m.checked, phase: m.phase });
         });
         setMeasures({ pre: byPhase.pre || [], during: byPhase.during || [], post: byPhase.post || [] });
         setMeasuresLoaded(true);
+      } else if (Array.isArray(wp.safetyMeasures) && wp.safetyMeasures.length) {
+        setMeasures({ pre: (wp.safetyMeasures as string[]).map((c: string, i: number) => ({ id: `m${i}`, content: c, note: '', checked: false, phase: 'pre' })), during: [], post: [] });
+        setMeasuresLoaded(true);
       }
-      const firstWp = (data.workPermits || [])[0];
-      if (firstWp?.id) { setWpId(firstWp.id); setWpCreated(true); }
-      setCerts(data.certificates || []);
-    }).catch(() => {
-      return api.get(`/e-permits/${effectiveEditId}`).then(({ data: wp }) => {
-        const isHazardWp = wp.isHazardous;
-        setMode(isHazardWp ? 'special' : 'routine');
-        if (isHazardWp && wp.type) setSpecialType(wp.type);
-        if (wp.linkedRoutineId) setLinkedRoutineId(wp.linkedRoutineId);
-        setAppId(wp.applicationId || '');
-        setPermitNo(wp.permitNo);
-        // 从作业票 id 进入编辑：必须复用该 wp，避免提交时又新建一张票（编号 +1 且旧票残留草稿）
-        setWpId(effectiveEditId);
-        setWpCreated(true);
-        setForm({
-          jobName: wp.jobName || '', department: wp.department || '', building: wp.building || '', floor: wp.floor || '', area: wp.area || '', location: wp.location || '',
-          planStart: wp.startTime ? dayjs(wp.startTime).format('YYYY-MM-DDTHH:mm') : '',
-          planEnd: wp.endTime ? dayjs(wp.endTime).format('YYYY-MM-DDTHH:mm') : '',
-          operatorNames: (wp.operatorNames || []).join(', '), supervisorName: wp.supervisorName || '',
-          supervisorContact: wp.supervisorContact || '', content: wp.content || '',
-          contractorUnit: wp.contractorUnit || '', contractorHead: wp.contractorHead || '',
-          contractorPhone: wp.contractorPhone || '',
-          operatorCount: wp.expectedOperatorCount != null ? String(wp.expectedOperatorCount) : '',
-          managementDept: '', managementPerson: '',
-          guardianSignatures: [],
-        });
-        if (Array.isArray(wp.jsas) && wp.jsas.length) setJsas(wp.jsas);
-        if (Array.isArray(wp.measureSelections) && wp.measureSelections.length) {
-          const byPhase: any = { pre: [], during: [], post: [] };
-          wp.measureSelections.forEach((m: any, i: number) => {
-            const grp = byPhase[m.phase || 'pre'] || (byPhase[m.phase || 'pre'] = []);
-            grp.push({ id: m.id || `m${i}`, content: m.content, note: m.note || '', checked: !!m.checked, phase: m.phase });
-          });
-          setMeasures({ pre: byPhase.pre || [], during: byPhase.during || [], post: byPhase.post || [] });
-          setMeasuresLoaded(true);
-        }
-        if (Array.isArray(wp.certificates) && wp.certificates.length) setCerts(wp.certificates);
-        setErr(wp.applicationId ? '' : '该作业票尚无对应申请单，保存将创建一个新申请单并关联此草稿作业票。');
-      });
-    }).catch(() => setErr('加载申请单失败')).finally(() => setLoading(false));
+      if (Array.isArray(wp.certificates) && wp.certificates.length) setCerts(wp.certificates);
+      // 现场检查已提交则复用状态，避免驳回重提重复检查
+      if (wp.siteInspection?.inspector) { setInspector(wp.siteInspection.inspector); setInspectDone(true); }
+    }).catch(() => setErr('加载作业票失败')).finally(() => setLoading(false));
   }, [effectiveEditId]);
 
   // 选择关联常规作业后自动填写危险作业基本信息（支持修改）
@@ -352,35 +314,51 @@ export default function EApplicationApply() {
     return '';
   }
 
-  async function ensureApp(): Promise<string> {
-    if (appId) return appId;
-    if (effectiveEditId) { setAppId(effectiveEditId); return effectiveEditId; }
-    const { data } = await api.post('/e-applications', { department: form.department || user?.department });
-    setAppId(data.id); setPermitNo(data.permitNo);
+  // 单表合并后：确保存在一张作业票（草稿），返回其 id
+  async function ensureWp(): Promise<string> {
+    if (wpId) return wpId;
+    if (effectiveEditId) { setWpId(effectiveEditId); setWpCreated(true); return effectiveEditId; }
+    const type = isHazard ? (specialType || 'other') : 'routine';
+    const { data } = await api.post('/e-permits', {
+      type,
+      department: form.department || user?.department,
+      linkedRoutineId: isHazard ? (linkedRoutineId || null) : null,
+      expectedOperatorCount: !isHazard && form.operatorCount ? Number(form.operatorCount) : undefined,
+    });
+    setWpId(data.id); setPermitNo(data.permitNo); setWpCreated(true);
     return data.id;
   }
 
-  async function saveApp() {
-    const id = await ensureApp();
+  async function saveWp() {
+    const id = await ensureWp();
     const safetyMeasures = isHazard
       ? [...measures.pre, ...measures.during, ...measures.post].map((m, i) => ({
           id: m.id || `m${i}`, content: m.content, checked: !!m.checked, note: m.note || '', phase: m.phase,
         }))
       : [];
-    await api.put(`/e-applications/${id}`, {
-      ...form,
-      operatorNames: form.operatorNames ? form.operatorNames.split(/[,，\s]+/).filter(Boolean) : [],
-      planStart: form.planStart || undefined, planEnd: form.planEnd || undefined,
+    await api.put(`/e-permits/${id}`, {
       jobName: form.jobName || (isHazard ? `${t?.label || '特殊'}作业` : ''),
-      involvesHazardous: isHazard,
-      permitType: isHazard ? 'special' : 'routine',
-      type: isHazard ? (specialType || 'other') : 'routine',
-      jsas,
-      steps: steps.filter((s) => s.trim()),
-      safetyMeasures,
-      linkedRoutineId: isHazard ? (linkedRoutineId || null) : null,
+      department: form.department || undefined,
+      building: form.building || undefined,
+      floor: form.floor || undefined,
+      area: form.area || undefined,
+      location: form.location || undefined,
+      startTime: form.planStart || undefined,
+      endTime: form.planEnd || undefined,
+      supervisorName: form.supervisorName || undefined,
+      supervisorContact: form.supervisorContact || undefined,
+      operatorNames: form.operatorNames ? form.operatorNames.split(/[,，\s]+/).filter(Boolean) : [],
+      content: form.content || undefined,
+      contractorUnit: form.contractorUnit || undefined,
+      contractorHead: form.contractorHead || undefined,
+      contractorPhone: form.contractorPhone || undefined,
+      managementDept: form.managementDept || undefined,
+      managementPerson: form.managementPerson || undefined,
       expectedOperatorCount: !isHazard && form.operatorCount ? Number(form.operatorCount) : undefined,
+      linkedRoutineId: isHazard ? (linkedRoutineId || null) : null,
       guardianSignatures: isHazard ? (form.guardianSignatures || []) : [],
+      jsas: jsas.filter((j) => j.step?.trim() || j.hazard?.trim() || j.control?.trim()),
+      safetyMeasures,
     });
     // 承包商自动入库（下次输入联想）
     await saveContractor();
@@ -431,43 +409,11 @@ export default function EApplicationApply() {
     try {
       setSaving(true);
       recordRecall();
-      const id = await saveApp();
-      // 只要还没有关联作业票就创建（无论是否编辑态）：保证提交后立刻在常规/危险作业管理中可见，
-      // 不等审批。isEditing 时若已有 wp（主路径 firstWp/fallback wpCreated）则复用，不重复创建。
-      if (!wpCreated) {
-        const wpType = isHazard ? specialType : 'routine';
-        const wpRes = await api.post('/e-permits', {
-          type: wpType,
-          applicationId: id,
-          linkedRoutineId: isHazard ? (linkedRoutineId || null) : null,
-          expectedOperatorCount: !isHazard && form.operatorCount ? Number(form.operatorCount) : undefined,
-          // 带全作业票必填字段，确保 wp 创建后 submit 不因缺字段失败（提交即同步可见）
-          jobName: form.jobName,
-          content: form.content,
-          building: form.building,
-          floor: form.floor,
-          area: form.area,
-          location: form.location,
-          startTime: form.planStart || undefined,
-          endTime: form.planEnd || undefined,
-          supervisorName: form.supervisorName,
-          supervisorContact: form.supervisorContact,
-          operatorNames: form.operatorNames ? form.operatorNames.split(/[,，\s]+/).filter(Boolean) : [],
-        }).catch(() => null);
-        if (wpRes?.data?.id) { setWpId(wpRes.data.id); setWpCreated(true); }
-      }
-      // 同步 JSA 到作业票本体（避免 EPermits/Detail 页 JSA 显示为空）
-      if (wpId) {
-        await api.put(`/e-permits/${wpId}`, { jsas: jsas.filter((j) => j.step?.trim() || j.hazard?.trim() || j.control?.trim()) }).catch(() => {});
-      }
-      // 提交作业票本体（draft→pending_review），确保出现在「常规/危险作业管理」列表。
-      // 失败必须抛错（不静默吞掉），否则票停留在 draft 而被作业管理列表过滤，用户以为没同步。
-      if (wpId) {
-        await api.post(`/e-permits/${wpId}/submit`);
-      }
-      await api.post(`/e-applications/${id}/submit`);
-      setMsg(isHazard ? '提交成功，危险作业票将进入三级审批。' : '提交成功，申请批准后自动生成作业票。');
-      setTimeout(() => navigate(`/e-applications/${id}`), 1200);
+      // 单表合并：直接保存作业票并提交流程（draft→pending_review）
+      const id = await saveWp();
+      await api.post(`/e-permits/${id}/submit`);
+      setMsg(isHazard ? '提交成功，危险作业票将进入三级审批。' : '提交成功，作业票将进入审批流程。');
+      setTimeout(() => navigate(`/e-permits/view/${id}`), 1200);
     } catch (e: any) {
       setErr(e.response?.data?.message || '提交失败');
     } finally { setSaving(false); }
@@ -477,7 +423,7 @@ export default function EApplicationApply() {
     setErr(''); setMsg('');
     try {
       recordRecall();
-      await saveApp();
+      await saveWp();
       setMsg('已保存草稿');
     } catch (e: any) { setErr(e.response?.data?.message || '保存失败'); }
   }
@@ -488,9 +434,9 @@ export default function EApplicationApply() {
   const allMeasures = [...measures.pre, ...measures.during, ...measures.post];
 
   // 驳回时在所有页面顶部展示驳回原因（让申请人知道为什么被驳回）
-  const rejectedBanner = appStatus === 'rejected' ? (
+  const rejectedBanner = wpStatus === 'rejected' ? (
     <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 mb-4 text-sm">
-      <div className="font-medium text-destructive mb-1">⚠ 申请单已被驳回，请修改后重新提交</div>
+      <div className="font-medium text-destructive mb-1">⚠ 作业票已被驳回，请修改后重新提交</div>
       {rejectReason && <div className="text-xs text-destructive/90 whitespace-pre-wrap">驳回原因：{rejectReason}</div>}
     </div>
   ) : null;
@@ -507,7 +453,7 @@ export default function EApplicationApply() {
           description="选择作业类型后进入专属申请页"
           icon={<Smartphone size={20} />}
           actions={
-            <Button variant="ghost" onClick={() => { if (window.history.length > 1) navigate(-1); else navigate('/e-applications'); }}>取消</Button>
+            <Button variant="ghost" onClick={() => { if (window.history.length > 1) navigate(-1); else navigate('/e-permits'); }}>取消</Button>
           }
         />
         <Section title="选择作业类型" icon={<FileText size={16} />}>
@@ -581,7 +527,7 @@ export default function EApplicationApply() {
             <Button onClick={submit} disabled={saving}>
               <Send size={16} className="mr-1" /> 确认提交
             </Button>
-            <Button variant="ghost" onClick={() => { if (window.history.length > 1) navigate(-1); else navigate('/e-applications'); }}>取消</Button>
+            <Button variant="ghost" onClick={() => { if (window.history.length > 1) navigate(-1); else navigate('/e-permits'); }}>取消</Button>
           </>
         }
       />
@@ -787,8 +733,8 @@ export default function EApplicationApply() {
                           if (!inspector.trim()) { setErr('请填写现场检查人'); return; }
                           if (!Object.values(inspectItems).every(Boolean)) { setErr('请勾选全部现场检查项'); return; }
                           try {
-                            const appId = await ensureApp();
-                            await api.post(`/e-applications/${appId}/inspections`, {
+                            const id = await ensureWp();
+                            await api.post(`/e-permits/${id}/inspections`, {
                               inspector: inspector.trim(), result: 'normal', note: '现场检查完成（危险作业票提交前置）',
                             });
                             setInspectDone(true);
@@ -981,7 +927,7 @@ export default function EApplicationApply() {
                       setUploading(true);
                       const fd = new FormData(); fd.append('file', e.target.files[0]);
                       try {
-                        const id = await ensureApp();
+                        const id = await ensureWp();
                         const { data } = await api.post(`/e-permits/${id}/certificate/upload`, fd);
                         setCerts((prev) => [...prev, data]);
                       } catch {}

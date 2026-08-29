@@ -4,7 +4,7 @@ import api from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { Button, Input } from '@/components/ui';
 import { StatusPill } from '@/components/kit';
-import { WORK_PERMIT_APPLICATION_STATUS } from '@/constants';
+import { WORK_PERMIT_STATUS } from '@/constants';
 import ContractorBadge from '@/components/ContractorBadge';
 import ehsLogo from '@/assets/ehs-logo.png';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -614,7 +614,7 @@ export default function EBoard() {
   );
 
   function JobCard({ a, fontSize = 14 }: { a: any; fontSize?: number }) {
-    const st = WORK_PERMIT_APPLICATION_STATUS[a.status] || { label: a.status, color: '#94a3b8' };
+    const st = WORK_PERMIT_STATUS[a.status] || { label: a.status, color: '#94a3b8' };
     const isHazard = a.kind === 'hazard';
     const isRoutine = a.kind === 'routine';
     // 用 fontSize 反推各 Tailwind 字号的等比值（base 14px 为基准）
