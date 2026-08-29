@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>承包商协同 · 需求说明与方案澄清（确认版）</title>
+<style>
+  :root{
+    --bg:#f7f3ec; --paper:#fffdf8; --ink:#2b2620; --muted:#7a7165;
+    --line:#e7ded0; --accent:#c98a3d; --accent2:#b06f2a;
+    --emp:#2f6fb3; --con:#3e8a5a; --warn:#c0493f;
+    --emp-bg:#eaf2fb; --con-bg:#eaf5ee; --warn-bg:#fdeceb;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--ink); font-family:"Microsoft YaHei","PingFang SC",-apple-system,sans-serif; line-height:1.75; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1060px; margin:0 auto; padding:32px 20px 64px;}
+  header{text-align:center; padding:28px 20px 18px;}
+  .kicker{display:inline-block; font-size:13px; letter-spacing:2px; color:var(--accent2); border:1px solid var(--accent); border-radius:999px; padding:4px 14px; margin-bottom:14px;}
+  h1{font-size:32px; font-weight:800; letter-spacing:1px;}
+  .sub{color:var(--muted); margin-top:10px; font-size:16px; max-width:760px; margin-left:auto; margin-right:auto;}
+  .hero{background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:26px 28px; margin:20px 0 28px; box-shadow:0 2px 14px rgba(90,70,40,.06);}
+  .hero h2{font-size:21px; margin-bottom:12px; display:flex; align-items:center; gap:10px;}
+  .hero p{color:#4c443a; font-size:15px;}
+  .hero .big{font-size:17px; font-weight:700; color:var(--accent2);}
+  section{margin-top:40px;}
+  .sec-title{font-size:24px; font-weight:800; text-align:center; margin-bottom:6px;}
+  .sec-desc{text-align:center; color:var(--muted); font-size:14px; margin-bottom:22px;}
+  /* 谁填什么：左右对比卡 */
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:760px){.two{grid-template-columns:1fr;}}
+  .who-card{border-radius:14px; padding:20px 18px; border:1px solid var(--line); background:var(--paper);}
+  .who-card.emp{border-top:5px solid var(--emp);}
+  .who-card.con{border-top:5px solid var(--con);}
+  .who-card .tag{display:inline-block; color:#fff; font-size:13px; font-weight:700; border-radius:8px; padding:3px 10px; margin-bottom:12px;}
+  .who-card.emp .tag{background:var(--emp);} .who-card.con .tag{background:var(--con);}
+  .who-card h3{font-size:18px; margin-bottom:4px;}
+  .who-card .subtitle{font-size:13px; color:var(--muted); margin-bottom:12px;}
+  .who-card ul{list-style:none;}
+  .who-card li{font-size:14px; padding:7px 0 7px 24px; position:relative; border-bottom:1px dashed var(--line);}
+  .who-card li:last-child{border-bottom:none;}
+  .who-card li::before{content:"✓"; position:absolute; left:0; font-weight:800;}
+  .who-card.emp li::before{color:var(--emp);} .who-card.con li::before{color:var(--con);}
+  .who-card li.no{color:var(--warn);}
+  .who-card li.no::before{content:"✕"; color:var(--warn); font-weight:800;}
+  .no-box{background:var(--warn-bg); border:1px solid #f0c4c0; border-radius:10px; padding:10px 14px; margin-top:10px; font-size:13px; color:var(--warn);}
+  /* 主流程 */
+  .flow{background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:24px; box-shadow:0 2px 14px rgba(90,70,40,.06);}
+  .step{display:flex; gap:16px; padding:14px 0; border-bottom:1px dashed var(--line);}
+  .step:last-child{border-bottom:none;}
+  .step .num{flex:0 0 44px; height:44px; border-radius:50%; background:var(--accent); color:#fff; font-weight:800; font-size:18px; display:flex; align-items:center; justify-content:center;}
+  .step .body{flex:1;}
+  .step .title{font-size:16px; font-weight:700;}
+  .step .who-do{font-size:12px; color:#fff; border-radius:6px; padding:1px 8px; margin-left:8px; font-weight:700; vertical-align:1px;}
+  .who-emp{background:var(--emp);} .who-con{background:var(--con);} .who-sys{background:var(--accent2);}
+  .step .plain{font-size:14px; color:#4c443a; margin-top:4px;}
+  .step .plain b{color:var(--accent2);}
+  /* 状态机 */
+  .states{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; align-items:center;}
+  .state{border-radius:10px; padding:8px 14px; font-size:14px; font-weight:700; background:var(--paper); border:1px solid var(--line);}
+  .state.new{background:#fdf3e3; border-color:#e0b57a; color:var(--accent2);}
+  .arrow{color:var(--accent2); font-weight:800; font-size:16px;}
+  /* 澄清 */
+  .fix{background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px 20px; margin-bottom:14px;}
+  .fix .badge{display:inline-block; font-size:12px; font-weight:700; border-radius:6px; padding:2px 8px; margin-right:8px;}
+  .fix .badge.wrong{background:var(--warn-bg); color:var(--warn);}
+  .fix .badge.right{background:var(--con-bg); color:var(--con);}
+  .fix .t{font-size:15px; font-weight:700; margin-bottom:6px;}
+  .fix p{font-size:14px; color:#4c443a;}
+  .fix .line{display:flex; gap:10px; margin-top:6px; font-size:14px;}
+  .fix .line .lbl{flex:0 0 70px; font-weight:700; font-size:13px;}
+  .fix .wrong-txt{color:var(--warn); text-decoration:line-through;}
+  .fix .right-txt{color:var(--con);}
+  /* 问题清单 */
+  .q{background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px 20px; margin-bottom:12px;}
+  .q .no{display:inline-block; width:26px; height:26px; line-height:26px; text-align:center; background:var(--accent); color:#fff; border-radius:8px; font-size:14px; font-weight:800; margin-right:10px;}
+  .q .t{font-size:15px; font-weight:700;}
+  .q p{font-size:14px; color:#4c443a; margin-top:4px;}
+  .q .rec{font-size:13px; color:var(--emp); margin-top:6px;}
+  .foot{text-align:center; color:var(--muted); font-size:12px; margin-top:40px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="kicker">EHS · 作业票承包商协同</span>
+    <h1>员工填一半，承包商补一半</h1>
+    <p class="sub">这一页用大白话把「谁填什么、走几步、状态怎么变」讲清楚，并说清上次哪里理解偏了。<br>你确认后，我们才动代码。</p>
+  </header>
+
+  <div class="hero">
+    <h2>💡 一句话看懂这次要做的功能</h2>
+    <p>以前员工把作业票从头填到尾，承包商只是"被动收结果"。现在改成：<br>
+    <span class="big">员工只填"在哪干、什么时候干、找谁干"——然后一键把链接+二维码发给施工方；施工方手机点开，自己补"干什么活、怎么干、有什么风险"；填完回传，才进入审批。</span><br>
+    <b>分工很明确：</b>员工管"这张票的背景"，施工方管"这次作业本身"。</p>
+  </div>
+
+  <section>
+    <div class="sec-title">谁填什么（这是最关键的一页）</div>
+    <div class="sec-desc">左边员工填的，右边施工方填的 —— 两边内容不重复</div>
+    <div class="two">
+      <div class="who-card emp">
+        <span class="tag">员工 · 申请人</span>
+        <h3>只填"基础信息"</h3>
+        <div class="subtitle">登录系统，在申请表单里填</div>
+        <ul>
+          <li>作业名称、部门</li>
+          <li>在哪干：楼栋 / 楼层 / 区域 / 具体位置</li>
+          <li>什么时间干：开始 / 结束时间</li>
+          <li>预计几个人、监护人是谁、电话多少</li>
+          <li>承包商：单位、负责人、电话</li>
+          <li><b>承包商联系邮箱</b>（用来发邀请）</li>
+          <li class="no">作业内容 —— <b>不填</b>（留给施工方）</li>
+          <li class="no">施工方案 —— <b>不填</b>（留给施工方）</li>
+          <li class="no">风险分析 JSA —— <b>不填</b>（留给施工方）</li>
+        </ul>
+        <div class="no-box">⚠️ 上次做错的就是这里：我把"作业内容、JSA"也放在员工表单里了，等于还是员工全填。这次会拿掉。</div>
+      </div>
+      <div class="who-card con">
+        <span class="tag">施工方 · 负责人</span>
+        <h3>补"作业本身"</h3>
+        <div class="subtitle">不用登录，手机点链接 / 扫二维码就能填</div>
+        <ul>
+          <li>作业内容：这次具体干什么活</li>
+          <li>施工方案：上传方案文件（PDF/图片）</li>
+          <li>AI 帮忙做 JSA 风险分析（自动列风险+防范措施，可改）</li>
+          <li>风险清单：逐条看一遍，勾选确认</li>
+          <li>危险作业还要补：作业人员、监护信息、作业证</li>
+          <li>填完点提交 → 回传给员工复核</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-title">一张票走几步</div>
+    <div class="sec-desc">从员工发起，到施工方填完，再到审批</div>
+    <div class="flow">
+      <div class="step">
+        <div class="num">1</div>
+        <div class="body">
+          <div class="title">员工填基础信息<span class="who-do who-emp">员工</span></div>
+          <div class="plain">填"在哪干、什么时间、找谁干、承包商是谁 + 邮箱"。<b>不填作业内容</b>。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <div class="body">
+          <div class="title">发送邀请<span class="who-do who-emp">员工</span></div>
+          <div class="plain">申请表单里就有「发送邀请」按钮。一点，系统生成一个<b>链接 + 二维码</b>（72 小时有效），员工复制发给施工方。票变成「<b>等待施工方填写</b>」。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <div class="body">
+          <div class="title">施工方补信息<span class="who-do who-con">施工方</span></div>
+          <div class="plain">手机点开链接，填<b>作业内容、施工方案</b>，AI 生成 JSA 风险分析（最多用 3 次 AI，人工可无限改），勾选风险清单，提交。票变成「<b>施工方已提交</b>」。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">4</div>
+        <div class="body">
+          <div class="title">员工复核<span class="who-do who-emp">员工</span></div>
+          <div class="plain">员工看一眼施工方填的内容：没问题 → 点「提交审批」；有问题 → 退回去让施工方改。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">5</div>
+        <div class="body">
+          <div class="title">线上审批<span class="who-do who-sys">审批人</span></div>
+          <div class="plain">审批人只看<b>施工方勾选确认过的风险项</b>，逐级批。批完通知双方。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-title">票的状态怎么变</div>
+    <div class="sec-desc">两个新状态是这次的关键（橙色标出）</div>
+    <div class="states">
+      <span class="state">草稿</span><span class="arrow">→</span>
+      <span class="state new">等待施工方填写 ★</span><span class="arrow">→</span>
+      <span class="state new">施工方已提交 ★</span><span class="arrow">→</span>
+      <span class="state">待审批</span><span class="arrow">→</span>
+      <span class="state">已批准</span><span class="arrow">→</span>
+      <span class="state">进行中</span><span class="arrow">⇄</span>
+      <span class="state">已暂停</span><span class="arrow">→</span>
+      <span class="state">完工</span><span class="arrow">→</span>
+      <span class="state">已归档</span>
+    </div>
+    <div class="sec-desc" style="margin-top:14px;">发邀请后变「等待施工方填写」；施工方提交后变「施工方已提交」；员工复核送审后才变「待审批」。批不过 → 退回。</div>
+  </section>
+
+  <section>
+    <div class="sec-title">上次我哪里理解偏了（诚实交代）</div>
+    <div class="sec-desc">不是"没做"，是"做错了一部分方向"，这次改对</div>
+
+    <div class="fix">
+      <span class="badge wrong">上次做错</span><span class="t">员工表单里也填了"作业内容"和 JSA</span>
+      <p>我把作业内容、作业步骤、AI 生成 JSA 的按钮都放在了员工申请页 —— 等于还是员工全填，跟你要的"员工只填一半"矛盾。</p>
+      <div class="line"><span class="lbl">应改为</span><span class="right-txt">员工表单只留基础信息；作业内容/方案/JSA 全部只在施工方页面</span></div>
+    </div>
+
+    <div class="fix">
+      <span class="badge wrong">上次做错</span><span class="t">缺"等待施工方"这个中间状态</span>
+      <p>员工提交后直接进了审批，没有"发邀请 → 等施工方填"这一步，流程少了一环。</p>
+      <div class="line"><span class="lbl">应改为</span><span class="right-txt">发邀请后状态变「等待施工方填写」，施工方提交后「施工方已提交」，员工复核后才进审批</span></div>
+    </div>
+
+    <div class="fix">
+      <span class="badge wrong">上次做错</span><span class="t">「发送邀请 + 二维码」入口不显眼</span>
+      <p>你说"没有邮箱填写的地方、没有发送邮件和生成二维码" —— 邮箱字段之前藏在表单深处，邀请入口在详情页卡片里，你找不到。</p>
+      <div class="line"><span class="lbl">应改为</span><span class="right-txt">申请表单里直接就有：承包商邮箱输入框 + 「发送邀请」按钮 + 生成的链接/二维码/复制，一步到位</span></div>
+    </div>
+
+    <div class="fix">
+      <span class="badge right">上次做对</span><span class="t">施工方免登录页、AI 风险分析、3 次上限、风险勾选</span>
+      <p>这些已经做好且能用：施工方扫码进去填、AI 生成 JSA（第 4 次会被系统拦住）、风险清单勾选确认。</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-title">动手前，需要你拍板的 5 个问题</div>
+    <div class="sec-desc">你确认后，我按确认结果一次性改对</div>
+
+    <div class="q">
+      <span class="no">1</span><span class="t">员工什么时候点「发送邀请」？</span>
+      <p>是填完基础信息页面上就有按钮（点一下自动保存+发邀请），还是先保存草稿、稍后再发？</p>
+      <p class="rec">建议：填完基础信息就能点，一步到位，不用先记着"保存草稿"。</p>
+    </div>
+    <div class="q">
+      <span class="no">2</span><span class="t">施工方提交后，员工必须复核才能进审批吗？</span>
+      <p>方案是"必须复核"（员工可以退回让施工方改）。确认默认开启这个环节？</p>
+      <p class="rec">建议：开启复核。员工看一眼、把关一下，再送审。</p>
+    </div>
+    <div class="q">
+      <span class="no">3</span><span class="t">危险作业的"作业人员填写"是单独一张邀请吗？</span>
+      <p>危险票目前有两张邀请：一张给施工方负责人（填方案/JSA），一张给作业人员（填时间/人员/证书）。保持分开，还是合并成一张？</p>
+      <p class="rec">建议：保持分开。负责人管"方案和风险"，作业人员管"谁去干、什么证"。</p>
+    </div>
+    <div class="q">
+      <span class="no">4</span><span class="t">邮件真的发吗？</span>
+      <p>系统目前没配真实邮箱服务（SMTP）。是先用"链接+二维码"让流程跑通（推荐），等以后配好邮箱再自动发邮件？</p>
+      <p class="rec">建议：先不发真邮件，用链接+二维码。以后配好邮箱，系统自动开始发，代码不用重改。</p>
+    </div>
+    <div class="q">
+      <span class="no">5</span><span class="t">已经建好的旧票（已送审的）怎么办？</span>
+      <p>比如你之前那张 GWP-202608-0512（已提交审批、没填邮箱）。旧票保持原样不动，只有新票走新流程？</p>
+      <p class="rec">建议：旧票不动，避免审批中改单；你新建一张票就能看到完整新流程。</p>
+    </div>
+  </section>
+
+  <div class="foot">承包商协同 · 需求澄清确认版 · 2026-08-29 · 确认后按文档第三节「修正执行清单」实施</div>
+
+</div>
+</body>
+</html>
