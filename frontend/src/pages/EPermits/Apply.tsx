@@ -81,7 +81,7 @@ export default function EApplicationApply() {
   const [form, setForm] = useState({
     jobName: '', department: '', building: '', floor: '', area: '', location: '', planStart: '', planEnd: '',
     operatorNames: '', supervisorName: '', supervisorContact: '', content: '',
-    contractorUnit: '', contractorHead: '', contractorPhone: '', operatorCount: '',
+    contractorUnit: '', contractorHead: '', contractorPhone: '', contractorEmail: '', operatorCount: '',
     managementDept: '', managementPerson: '',
     guardianSignatures: [] as Array<{ role: 'company_guardian' | 'contractor_guardian'; name: string; signImg?: string; signedAt?: string }>,
   });
@@ -253,7 +253,7 @@ export default function EApplicationApply() {
         operatorNames: (wp.operatorNames || []).join(', '), supervisorName: wp.supervisorName || '',
         supervisorContact: wp.supervisorContact || '', content: wp.content || '',
         contractorUnit: wp.contractorUnit || '', contractorHead: wp.contractorHead || '',
-        contractorPhone: wp.contractorPhone || '',
+        contractorPhone: wp.contractorPhone || '', contractorEmail: wp.contractorEmail || '',
         operatorCount: wp.expectedOperatorCount != null ? String(wp.expectedOperatorCount) : '',
         managementDept: wp.managementDept || '', managementPerson: wp.managementPerson || '',
         guardianSignatures: wp.guardianSignatures || [],
@@ -353,6 +353,7 @@ export default function EApplicationApply() {
       contractorUnit: form.contractorUnit || undefined,
       contractorHead: form.contractorHead || undefined,
       contractorPhone: form.contractorPhone || undefined,
+      contractorEmail: form.contractorEmail || undefined,
       managementDept: form.managementDept || undefined,
       managementPerson: form.managementPerson || undefined,
       expectedOperatorCount: !isHazard && form.operatorCount ? Number(form.operatorCount) : undefined,
@@ -623,6 +624,9 @@ export default function EApplicationApply() {
                             </div>
                           )}
                         </div>
+                      </Field>
+                      <Field label="承包商邮箱" hint={form.contractorEmail ? '保存后可在详情页发送免登录填写邀请（员工填基础信息 → 承包商做风险识别）' : undefined}>
+                        <Input value={form.contractorEmail} onChange={(e) => setK('contractorEmail', e.target.value)} placeholder="用于发送填写邀请（可留空，稍后在详情页补）" />
                       </Field>
                       <Field label="作业人"><Input value={form.operatorNames} onChange={(e) => setK('operatorNames', e.target.value)} list="rc-operatorNames" placeholder="赵六, 孙七" /></Field>
                       <Field label="监护人"><Input value={form.supervisorName} onChange={(e) => setK('supervisorName', e.target.value)} list="rc-supervisorName" placeholder="监护人姓名" /></Field>

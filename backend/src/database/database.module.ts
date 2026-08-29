@@ -338,6 +338,11 @@ export class DatabaseModule implements OnModuleInit, OnApplicationBootstrap {
         await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS floor varchar(100)`);
         await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS site_inspection jsonb`);
         await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS steps jsonb DEFAULT '[]'::jsonb`);
+        // 承包商协同（P1）
+        await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS jsa_analysis_count integer NOT NULL DEFAULT 0`);
+        await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS jsa_modified_round integer NOT NULL DEFAULT 0`);
+        await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS risk_hazards jsonb DEFAULT '[]'::jsonb`);
+        await (this.pg as any).query(`ALTER TABLE work_permits ADD COLUMN IF NOT EXISTS plan_file varchar(512)`);
       } catch (e) {
         console.warn(`[migrate] 作业票合规字段补列失败（忽略）: ${(e as Error).message}`);
       }

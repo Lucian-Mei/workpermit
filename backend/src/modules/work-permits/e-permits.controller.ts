@@ -271,6 +271,22 @@ export class EPermitsController {
     return this.svc.completeTrainingSign(id);
   }
 
+  // ===== 承包商协同：发送免登录填写邀请（P0-2 令牌/二维码 + P0-3 邮件降级）=====
+  @Post(':id/contractor-invite')
+  @RequirePerms('epermit:create', 'epermit:view_all')
+  @HttpCode(200)
+  async createContractorInvite(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.svc.createContractorInvite(id, user);
+  }
+
+  // P2-1：危险票作业人员填写邀请
+  @Post(':id/worker-invite')
+  @RequirePerms('epermit:create', 'epermit:view_all')
+  @HttpCode(200)
+  async createWorkerInvite(@Param('id') id: string) {
+    return this.svc.createWorkerInvite(id, null);
+  }
+
   @Post(':id/signatures')
   @RequirePerms('epermit:onsite_check')
   @HttpCode(200)

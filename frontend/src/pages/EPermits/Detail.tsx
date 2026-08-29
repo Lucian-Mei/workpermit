@@ -22,6 +22,11 @@ export default function EPermitDetail() {
   const [showPrint, setShowPrint] = useState(false);
   const [pauseOpen, setPauseOpen] = useState(false);
   const [pauseReason, setPauseReason] = useState('');
+  // 承包商协同：免登录填写邀请（生成后展示链接/二维码/有效期）
+  const [invite, setInvite] = useState<any>(null);
+  const [workerInvite, setWorkerInvite] = useState<any>(null);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [copyTip, setCopyTip] = useState('');
 
   async function load() {
     const { data } = await api.get(`/e-permits/${id}`);
@@ -91,6 +96,42 @@ export default function EPermitDetail() {
     load();
   }
 
+  // ===== 承包商协同（P0-2/P0-3 + P2-1）：生成免登录填写邀请 =====
+  async function sendContractorInvite() {
+    if (!d.contractorEmail) { alert('请先在编辑页填写承包商联系邮箱'); return; }
+    setInviteBusy(true); setCopyTip('');
+    try {
+      const { data } = await api.post(`/e-permits/${id}/contractor-invite`);
+      setInvite(data);
+      load();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || '生成邀请失败');
+    } finally {
+      setInviteBusy(false);
+    }
+  }
+  async function sendWorkerInvite() {
+    setInviteBusy(true); setCopyTip('');
+    try {
+      const { data } = await api.post(`/e-permits/${id}/worker-invite`);
+      setWorkerInvite(data);
+      load();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || '生成邀请失败');
+    } finally {
+      setInviteBusy(false);
+    }
+  }
+  async function copyLink(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyTip('链接已复制，可发送给承包商');
+      setTimeout(() => setCopyTip(''), 2500);
+    } catch {
+      setCopyTip('复制失败，请手动选择链接');
+    }
+  }
+
   // 已勾选的线上安全措施（measureSelections）
   const measures: any[] = d.measureSelections || [];
   const checkedMeasures = measures.filter((m) => m.checked);
@@ -152,6 +193,58 @@ export default function EPermitDetail() {
               <Button variant="secondary" onClick={archive}><Archive size={16} className="mr-1" /> 归档（电子留档）</Button>
             )}
           </div>
+        </section>
+      )}
+
+      {/* 承包商协同（P0/P1/P2）：草稿态由员工发起免登录填写邀请；承包商填内容+风险识别后回传 */}
+      {d.status === 'draft' && (canEdit || hasPerm(user, 'epermit:create') || hasPerm(user, 'epermit:view_all')) && (
+        <section className="card p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Users size={17} className="text-primary" />
+            <span className="text-sm font-semibold">承包商协同</span>
+            {d.contractorSubmittedAt && (
+              <span className="text-[11px] text-success">承包商已于 {dayjs(d.contractorSubmittedAt).format('MM-DD HH:mm')} 提交，可核对后送审</span>
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            承包商邮箱：{d.contractorEmail || <span className="text-warning">未填写 — 请先在「编辑」中填写承包商联系邮箱</span>}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {!invite && (
+              <Button size="sm" variant="secondary" disabled={inviteBusy || !d.contractorEmail} onClick={sendContractorInvite}>
+                <Link2 size={14} className="mr-1" />{inviteBusy ? '生成中…' : '生成承包商填写邀请'}
+              </Button>
+            )}
+            {invite && (
+              <div className="flex flex-wrap items-center gap-3 w-full">
+                <div className="text-xs bg-muted rounded-md px-2.5 py-1.5 flex-1 min-w-[220px] break-all">{invite.url}</div>
+                <Button size="sm" variant="secondary" onClick={() => copyLink(invite.url)}>复制链接</Button>
+                {invite.emailSkipped && <span className="text-[11px] text-warning">邮件未配置已跳过，请用链接/二维码邀请</span>}
+                <div className="flex items-center gap-2">
+                  <QRCodeCanvas value={invite.url} size={110} level="M" />
+                  <div className="text-[10px] text-muted-foreground max-w-[120px]">承包商扫码免登录填写（{dayjs(invite.expiresAt).format('MM-DD HH:mm')} 前有效）</div>
+                </div>
+              </div>
+            )}
+            {d.isHazardous && (
+              <>
+                {!workerInvite && !d.contractorSubmittedAt && (
+                  <Button size="sm" variant="secondary" disabled={inviteBusy || !d.contractorEmail} onClick={sendWorkerInvite}>
+                    生成作业人员填写邀请
+                  </Button>
+                )}
+                {workerInvite && (
+                  <div className="flex flex-wrap items-center gap-2 w-full">
+                    <span className="text-[11px] text-muted-foreground">作业人员填写链接：</span>
+                    <div className="text-xs bg-muted rounded-md px-2.5 py-1.5 flex-1 min-w-[180px] break-all">{workerInvite.url}</div>
+                    <Button size="sm" variant="secondary" onClick={() => copyLink(workerInvite.url)}>复制</Button>
+                    {workerInvite.emailSkipped && <span className="text-[11px] text-warning">邮件已跳过，请转发链接</span>}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          {copyTip && <div className="text-xs text-success">{copyTip}</div>}
         </section>
       )}
 

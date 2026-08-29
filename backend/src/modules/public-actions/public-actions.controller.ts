@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Param, Query, Body, Req, HttpCode, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, Body, Req, HttpCode, BadRequestException, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { Public } from '@/common/decorators/public.decorator';
 import { PublicActionsService } from './public-actions.service';
+import { WorkPermitsService } from '@/modules/work-permits/work-permits.service';
 
 // 全部为免登录公开接口（邮件审批 / 二维码签字 / 扫码培训 / 入厂登记）。
 // 【2026-08 收敛】仅返回 JSON，页面统一由 React SPA 渲染（/public/* 前端路由），
@@ -9,7 +11,10 @@ import { PublicActionsService } from './public-actions.service';
 @Public()
 @Controller('public')
 export class PublicActionsController {
-  constructor(private svc: PublicActionsService) {}
+  constructor(
+    private svc: PublicActionsService,
+    private wp: WorkPermitsService,
+  ) {}
 
   // 入厂登记：获取进行中的作业任务列表（看板QR无token显示全部；培训二维码带token时只显示对应任务）
   @Get('worker-register/tasks')
@@ -104,5 +109,52 @@ export class PublicActionsController {
   async signSubmit(@Param('token') token: string, @Body() body: { name?: string; role?: string; signImg?: string }) {
     if (!body.signImg) throw new BadRequestException('请先手写签名');
     return this.svc.submitSign(token, body as any);
+  }
+
+  // ===== 承包商协同（P1-1~P1-4）：免登录填写页（前端 /public/contractor-fill/:token 渲染）=====
+  @Get('contractor-fill/:token')
+  async contractorFillInfo(@Param('token') token: string) {
+    return this.wp.getContractorFill(token);
+  }
+
+  // 保存填写内容（多次保存；人工修订不限次，AI 分析次数后端独立计数）
+  @Post('contractor-fill/:token')
+  @HttpCode(200)
+  async saveContractorFill(@Param('token') token: string, @Body() body: any) {
+    return this.wp.saveContractorFill(token, body);
+  }
+
+  // 上传施工方案（白名单 + 魔数校验）
+  @Post('contractor-fill/:token/plan')
+  @HttpCode(200)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  async uploadContractorPlan(@Param('token') token: string, @UploadedFile() file: Express.Multer.File) {
+    return this.wp.saveContractorPlan(token, file);
+  }
+
+  // AI 生成/续写 JSA（后端强校验 3 次上限）
+  @Post('contractor-fill/:token/ai-jsa')
+  @HttpCode(200)
+  async contractorAiJsa(@Param('token') token: string, @Body() body: { steps?: string[]; content?: string }) {
+    return this.wp.contractorAiJsa(token, body);
+  }
+
+  // 承包商提交（确认作业内容 + JSA + 风险清单）→ 等待员工复核送审
+  @Post('contractor-fill/:token/submit')
+  @HttpCode(200)
+  async submitContractorFill(@Param('token') token: string) {
+    return this.wp.submitContractorFill(token);
+  }
+
+  // ===== 承包商协同（P2-1）：危险票作业人员免登录填写（前端 /public/worker-fill/:token 渲染）=====
+  @Get('worker-fill/:token')
+  async workerFillInfo(@Param('token') token: string) {
+    return this.wp.getWorkerFill(token);
+  }
+
+  @Post('worker-fill/:token')
+  @HttpCode(200)
+  async saveWorkerFill(@Param('token') token: string, @Body() body: any) {
+    return this.wp.saveWorkerFill(token, body);
   }
 }

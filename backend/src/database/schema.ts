@@ -281,6 +281,15 @@ export const workPermits = pgTable(
     contractorInviteToken: varchar('contractor_invite_token', { length: 64 }),
     contractorInviteExpiresAt: timestamp('contractor_invite_expires_at', { withTimezone: true }),
     contractorSubmittedAt: timestamp('contractor_submitted_at', { withTimezone: true }),
+    // ===== 承包商协同（P1）：AI JSA 次数控制 + 风险清单单一数据流 =====
+    // AI 分析累计次数上限 3（按票累计、退回不重置）；人工修订不限次
+    jsaAnalysisCount: integer('jsa_analysis_count').notNull().default(0),
+    // 人工修订轮次（P3-2 审计留痕）
+    jsaModifiedRound: integer('jsa_modified_round').notNull().default(0),
+    // 承包商一次确认的风险清单：[{hazard,consequence,measures[],checked}]；未勾选项不进审批/交底
+    riskHazards: jsonb('risk_hazards').$type<Array<{ hazard: string; consequence?: string; measures: string[]; checked: boolean }>>().default([]),
+    // 承包商上传的施工方案（files 模块存储路径）
+    planFile: varchar('plan_file', { length: 512 }),
     // 入厂核验二维码
     entryQrToken: varchar('entry_qr_token', { length: 64 }),
     entryQrUrl: text('entry_qr_url'),

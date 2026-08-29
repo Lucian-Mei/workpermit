@@ -1521,6 +1521,276 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
     return { success: true };
   }
 
+  // ================= 承包商协同（P0-2 / P0-3 / P1-1~P1-4 / P2-1）=================
+
+  /**
+   * P0-2 / P0-3：生成承包商填写邀请。
+   * 返回 72h 令牌 + 免登录链接（前端据此渲染二维码）；邮件不可用时降级为 emailSkipped=true，
+   * 由前端提示改用链接/二维码，绝不阻塞主流程。
+   */
+  async createContractorInvite(id: string, user: any) {
+    const wp = await this.ensure(id);
+    const canEditAll = isSuperAdmin(user) || (user?.permissions || []).includes('epermit:view_all');
+    if (!canEditAll && wp.applicantId !== user?.userId) {
+      throw new ForbiddenException('仅管理员、具备全量查看权限者或申请人本人可发送承包商邀请');
+    }
+    if (wp.status !== 'draft') throw new BadRequestException('仅草稿状态的作业票可发送承包商填写邀请');
+    const email = (wp.contractorEmail || '').trim();
+    if (!email) throw new BadRequestException('请先填写承包商联系邮箱');
+    const { token, expiresAt } = await this.tokens.create({
+      purpose: 'contractor_fill',
+      targetType: 'work_permit',
+      targetId: id,
+      role: 'contractor',
+      multi: true,
+      ttlHours: 72,
+    });
+    await this.db
+      .update(schema.workPermits)
+      .set({ contractorInviteToken: token, contractorInviteExpiresAt: expiresAt, updatedAt: new Date() })
+      .where(eq(schema.workPermits.id, id));
+    const url = `${appBaseUrl()}/public/contractor-fill/${token}`;
+    let emailSkipped = true;
+    try {
+      const html = [
+        `<div style="font-family:sans-serif;max-width:640px">`,
+        `<h3>EHS 作业票填写邀请</h3>`,
+        `<p>您好，贵单位需配合填写作业票 <b>${wp.permitNo || ''}</b> 的作业内容、施工方案与风险识别（JSA）。</p>`,
+        `<p>作业名称：${wp.jobName || '—'}<br/>作业内容：${wp.content || '—'}<br/>地点：${wp.location || '—'}</p>`,
+        `<p><a href="${url}" style="background:#2563eb;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">点击填写（72 小时内有效）</a></p>`,
+        `<p style="color:#666;font-size:12px">若按钮无法点击，请复制以下链接到浏览器打开：<br/>${url}</p>`,
+        `</div>`,
+      ].join('');
+      await this.email.send(email, `【EHS】作业票 ${wp.permitNo || ''} 填写邀请`, html);
+      emailSkipped = false;
+    } catch (e) {
+      this.logger.warn(`承包商邀请邮件未发出（降级为链接/二维码）: ${(e as Error)?.message}`);
+    }
+    return { token, expiresAt, url, email, emailSkipped };
+  }
+
+  /** P2-1：生成危险票作业人员填写邀请（72h） */
+  async createWorkerInvite(id: string, user: any) {
+    const wp = await this.ensure(id);
+    const email = (wp.contractorEmail || '').trim();
+    if (!email) throw new BadRequestException('请先填写承包商联系邮箱');
+    const { token, expiresAt } = await this.tokens.create({
+      purpose: 'worker_fill',
+      targetType: 'work_permit',
+      targetId: id,
+      role: 'worker',
+      multi: true,
+      ttlHours: 72,
+    });
+    const url = `${appBaseUrl()}/public/worker-fill/${token}`;
+    let emailSkipped = true;
+    try {
+      await this.email.send(email, `【EHS】危险作业票 ${wp.permitNo || ''} 作业人员填写邀请`,
+        `<p>请填写施工时间、作业人员、监护人、作业证书与风险识别：<br/><a href="${url}">${url}</a></p>`);
+      emailSkipped = false;
+    } catch (e) {
+      this.logger.warn(`作业人员邀请邮件未发出（降级为链接）: ${(e as Error)?.message}`);
+    }
+    return { token, expiresAt, url, email, emailSkipped };
+  }
+
+  /** 按令牌取作业票（免登录页用），校验 purpose 与有效期 */
+  private async wpByToken(token: string, purpose: 'contractor_fill' | 'worker_fill') {
+    const t = await this.tokens.getValid(token, purpose);
+    const wp = await this.ensure(t.targetId as string);
+    return { t, wp };
+  }
+
+  /** P1-1：免登录页读取基本信息（只读区 + 已填内容，便于续填） */
+  async getContractorFill(token: string) {
+    const { wp } = await this.wpByToken(token, 'contractor_fill');
+    return {
+      permitNo: wp.permitNo,
+      jobName: wp.jobName,
+      content: wp.content,
+      location: wp.location,
+      area: wp.area,
+      building: wp.building,
+      floor: wp.floor,
+      department: wp.department,
+      applicantName: wp.applicantName,
+      contractorUnit: wp.contractorUnit,
+      contractorHead: wp.contractorHead,
+      startTime: wp.startTime,
+      endTime: wp.endTime,
+      operatorNames: wp.operatorNames || [],
+      steps: wp.steps || [],
+      jsas: wp.jsas || [],
+      riskHazards: wp.riskHazards || [],
+      jsaAnalysisCount: wp.jsaAnalysisCount || 0,
+      jsaMaxCount: 3,
+      submittedAt: wp.contractorSubmittedAt,
+      status: wp.status,
+    };
+  }
+
+  /** P1-1：承包商保存填写内容（可多次保存，人工修订不限次） */
+  async saveContractorFill(token: string, dto: any) {
+    const { wp } = await this.wpByToken(token, 'contractor_fill');
+    if (wp.contractorSubmittedAt) throw new BadRequestException('已提交，如需修改请联系邀请方撤回');
+    const patch: any = { updatedAt: new Date() };
+    if (dto.content !== undefined) patch.content = dto.content;
+    if (dto.planFile !== undefined) patch.planFile = dto.planFile;
+    if (dto.steps !== undefined) patch.steps = dto.steps;
+    if (dto.jsas !== undefined) {
+      patch.jsas = dto.jsas;
+      patch.jsaModifiedRound = (wp.jsaModifiedRound || 0) + 1;
+    }
+    if (dto.riskHazards !== undefined) patch.riskHazards = dto.riskHazards;
+    await this.db.update(schema.workPermits).set(patch).where(eq(schema.workPermits.id, wp.id));
+    return { success: true };
+  }
+
+  /** P2-1：危险票作业人员填写提交 */
+  async saveWorkerFill(token: string, dto: any) {
+    const { wp } = await this.wpByToken(token, 'worker_fill');
+    const patch: any = { updatedAt: new Date() };
+    if (dto.startTime) patch.startTime = new Date(dto.startTime);
+    if (dto.endTime) patch.endTime = new Date(dto.endTime);
+    if (dto.operatorNames) patch.operatorNames = dto.operatorNames;
+    if (dto.supervisorName !== undefined) patch.supervisorName = dto.supervisorName;
+    if (dto.supervisorContact !== undefined) patch.supervisorContact = dto.supervisorContact;
+    if (dto.content !== undefined) patch.content = dto.content;
+    if (dto.jsas !== undefined) patch.jsas = dto.jsas;
+    if (dto.riskHazards !== undefined) patch.riskHazards = dto.riskHazards;
+    if (dto.startTime && dto.endTime) this.validateDuration(wp.type, patch.startTime, patch.endTime, 'update');
+    await this.db.update(schema.workPermits).set(patch).where(eq(schema.workPermits.id, wp.id));
+    return { success: true };
+  }
+
+  /** P2-1：免登录页读取危险票作业人员填写数据（便于续填） */
+  async getWorkerFill(token: string) {
+    const { wp } = await this.wpByToken(token, 'worker_fill');
+    return {
+      permitNo: wp.permitNo,
+      jobName: wp.jobName,
+      content: wp.content,
+      location: wp.location,
+      type: wp.type,
+      contractorUnit: wp.contractorUnit,
+      applicantName: wp.applicantName,
+      startTime: wp.startTime,
+      endTime: wp.endTime,
+      operatorNames: wp.operatorNames || [],
+      supervisorName: wp.supervisorName,
+      supervisorContact: wp.supervisorContact,
+      steps: wp.steps || [],
+      jsas: wp.jsas || [],
+      riskHazards: wp.riskHazards || [],
+      submittedAt: wp.contractorSubmittedAt,
+      status: wp.status,
+    };
+  }
+
+  /** P1-1：承包商上传施工方案文件（白名单校验 + 魔数校验走 FilesService） */
+  async saveContractorPlan(token: string, file: Express.Multer.File) {
+    const { wp } = await this.wpByToken(token, 'contractor_fill');
+    if (wp.contractorSubmittedAt) throw new BadRequestException('已提交，如需修改请联系邀请方撤回');
+    if (!file?.buffer?.length) throw new BadRequestException('请选择文件');
+    const { filePath, fileName } = await this.files.save(file.buffer, file.originalname || 'plan.pdf', file.mimetype);
+    await this.db
+      .update(schema.workPermits)
+      .set({ planFile: filePath, updatedAt: new Date() })
+      .where(eq(schema.workPermits.id, wp.id));
+    return { filePath, fileName };
+  }
+
+  /**
+   * P1-2：AI 生成 JSA（累计上限 3 次，后端强校验；人工修订不消耗次数）。
+   * 以当前手工修订版为上下文续写，产出要求：规范安全术语 + 具体执行动作/量化参数。
+   */
+  async contractorAiJsa(token: string, dto: { steps?: string[]; content?: string }) {
+    const { wp } = await this.wpByToken(token, 'contractor_fill');
+    if (wp.contractorSubmittedAt) throw new BadRequestException('已提交，不可再分析');
+    if ((wp.jsaAnalysisCount || 0) >= 3) {
+      throw new BadRequestException('AI 分析次数已用完（3/3），可继续手工完善后提交');
+    }
+    const steps = (dto.steps && dto.steps.length ? dto.steps : (wp.steps || [])).map((s: any) => String(s || '').trim()).filter(Boolean);
+    const content = dto.content ?? wp.content ?? '';
+    if (!content && steps.length === 0) throw new BadRequestException('请先填写作业内容或作业步骤');
+    const jsas = await this.ai.analyzeJsa({ content, steps, type: wp.type });
+    await this.db
+      .update(schema.workPermits)
+      .set({
+        steps,
+        content,
+        jsas: jsas as any,
+        jsaAnalysisCount: (wp.jsaAnalysisCount || 0) + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.workPermits.id, wp.id));
+    // P1-3：JSA 生成后自动派生风险清单（危害识别单一数据流）
+    const riskHazards = await this.deriveRiskHazards(wp.id);
+    return { jsas, riskHazards, jsaAnalysisCount: (wp.jsaAnalysisCount || 0) + 1, jsaMaxCount: 3 };
+  }
+
+  /**
+   * P1-3：风险清单自动派生（危害识别单一数据流，消除重复录入）
+   * = JSA 各步 hazard 去重 ∪ AI 建议危害 ∪ measure_templates 按类型补漏的固有风险
+   * 承包商只需增删/勾选，不从空白录入；checked=false 项不进审批与交底。
+   */
+  async deriveRiskHazards(id: string) {
+    const wp = await this.ensure(id);
+    const jsas = Array.isArray(wp.jsas) ? wp.jsas : [];
+    const content = wp.content || wp.jobName || '';
+    let aiHazards: string[] = [];
+    try {
+      const candidates = buildBriefingTemplate()
+        .filter((g) => ['env', 'equip', 'process'].includes(g.key))
+        .flatMap((g) => g.items.map((it) => it.text))
+        .filter((t) => !t.startsWith('其它'));
+      const res = await this.ai.analyzeBriefingHazards({ content, jsas, candidates });
+      aiHazards = Array.isArray(res) ? res : [];
+    } catch { aiHazards = []; }
+    const jsaHazards = Array.from(new Set(jsas.map((j: any) => String(j?.hazard || '').trim()).filter(Boolean)));
+    let tplRisks: string[] = [];
+    try {
+      const tpl = await this.db
+        .select({ content: schema.measureTemplates.content })
+        .from(schema.measureTemplates)
+        .where(eq(schema.measureTemplates.type, wp.type))
+        .limit(12);
+      tplRisks = (tpl || []).map((m: any) => String(m?.content || '').trim()).filter(Boolean);
+    } catch { tplRisks = []; }
+    const all = Array.from(new Set([...jsaHazards, ...aiHazards, ...tplRisks]));
+    const riskHazards = all.map((h) => ({
+      hazard: h,
+      consequence: '',
+      measures: Array.from(new Set(
+        jsas.filter((j: any) => String(j?.hazard || '').trim() === h).map((j: any) => String(j?.control || '').trim()).filter(Boolean),
+      )),
+      checked: false,
+    }));
+    await this.db
+      .update(schema.workPermits)
+      .set({ riskHazards: riskHazards as any, updatedAt: new Date() })
+      .where(eq(schema.workPermits.id, id));
+    return riskHazards;
+  }
+
+  /** P1-4：承包商提交（作业内容/JSA/风险清单已确认）→ 置 contractor_submitted，等待员工复核送审 */
+  async submitContractorFill(token: string) {
+    const { wp } = await this.wpByToken(token, 'contractor_fill');
+    if (wp.contractorSubmittedAt) throw new BadRequestException('已提交，请勿重复提交');
+    if (!wp.content) throw new BadRequestException('请填写作业内容');
+    const jsas = Array.isArray(wp.jsas) ? wp.jsas : [];
+    if (jsas.length === 0) throw new BadRequestException('请先完成风险识别（JSA）');
+    const risk = Array.isArray(wp.riskHazards) ? wp.riskHazards : [];
+    if (risk.length > 0 && !risk.some((r: any) => r?.checked)) {
+      throw new BadRequestException('请至少勾选确认一项风险');
+    }
+    await this.db
+      .update(schema.workPermits)
+      .set({ contractorSubmittedAt: new Date(), updatedAt: new Date() })
+      .where(eq(schema.workPermits.id, wp.id));
+    return { success: true, submittedAt: new Date() };
+  }
+
   // ================= 作业看板 / 年度统计（单表合并后直接统计作业票）=================
 
   async board(dateStr?: string, channel: 'paper' | 'electronic' = 'paper') {

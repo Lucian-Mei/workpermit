@@ -39,6 +39,8 @@ const EBoard = lazyWithRetry(() => import('@/pages/EBoard/Board'));
 const MobileBoard = lazyWithRetry(() => import('@/pages/MobileBoard'));
 const PublicSign = lazyWithRetry(() => import('@/pages/PublicSign'));
 const PublicApproval = lazyWithRetry(() => import('@/pages/Public/Approval'));
+const ContractorFill = lazyWithRetry(() => import('@/pages/Public/ContractorFill'));
+const WorkerFill = lazyWithRetry(() => import('@/pages/Public/WorkerFill'));
 
 // 作业票申请向导（单表合并后直接开作业票，无申请单层）
 
@@ -62,6 +64,8 @@ export default function App() {
       <Route path="/change-password" element={<ChangePassword />} />
       <Route path="/public/sign/:token" element={<PublicSign />} />
       <Route path="/public/approval/:token" element={<PublicApproval />} />
+      <Route path="/public/contractor-fill/:token" element={<ContractorFill />} />
+      <Route path="/public/worker-fill/:token" element={<WorkerFill />} />
 
       <Route
         path="/"

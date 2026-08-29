@@ -5,8 +5,18 @@ import { eq } from 'drizzle-orm';
 import * as crypto from 'crypto';
 import * as schema from '@/database/schema';
 
+export type ActionTokenPurpose = 'email_approval' | 'mobile_sign' | 'contractor_fill' | 'worker_fill';
+
+// 各类令牌过期提示（免登录页直接展示给用户）
+const EXPIRED_MSG: Record<ActionTokenPurpose, string> = {
+  email_approval: '审批链接已过期（自发出起 48 小时内有效），请登录系统处理',
+  mobile_sign: '签字链接已过期，请重新生成二维码',
+  contractor_fill: '填写链接已过期（自发出起 72 小时内有效），请联系邀请方重新发送邀请',
+  worker_fill: '填写链接已过期（自发出起 72 小时内有效），请联系邀请方重新发送邀请',
+};
+
 export interface CreateTokenOpts {
-  purpose: 'email_approval' | 'mobile_sign';
+  purpose: ActionTokenPurpose;
   targetType: 'work_permit' | 'application' | 'briefing' | 'training';
   targetId: string;
   step?: string; // review / approve_ehs / approve_mgr / approve
@@ -49,12 +59,12 @@ export class TokensService {
     return { token, expiresAt };
   }
 
-  async getValid(token: string, purpose: 'email_approval' | 'mobile_sign') {
+  async getValid(token: string, purpose: ActionTokenPurpose) {
     const [t] = await this.db.select().from(schema.actionTokens).where(eq(schema.actionTokens.token, token)).limit(1);
     if (!t || t.purpose !== purpose) throw new NotFoundException('链接无效或已被撤销');
-    if (t.usedAt && !t.multi) throw new BadRequestException('该链接已被使用，如需再次操作请登录系统');
+    if (t.usedAt && !t.multi) throw new BadRequestException('该链接已被使用，如需再次操作请联系人重新发送');
     if (new Date(t.expiresAt as any) < new Date()) {
-      throw new BadRequestException(purpose === 'email_approval' ? '审批链接已过期（自发出起 48 小时内有效），请登录系统处理' : '签字链接已过期，请重新生成二维码');
+      throw new BadRequestException(EXPIRED_MSG[purpose] || '链接已过期，请联系人重新发送');
     }
     return t;
   }
