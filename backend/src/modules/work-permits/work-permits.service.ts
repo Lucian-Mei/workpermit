@@ -1534,7 +1534,7 @@ export class WorkPermitsService implements OnModuleInit, OnModuleDestroy {
     if (!canEditAll && wp.applicantId !== user?.userId) {
       throw new ForbiddenException('仅管理员、具备全量查看权限者或申请人本人可发送承包商邀请');
     }
-    if (wp.status !== 'draft') throw new BadRequestException('仅草稿状态的作业票可发送承包商填写邀请');
+    if (!['draft', 'rejected'].includes(wp.status)) throw new BadRequestException('仅草稿或已驳回状态的作业票可发送承包商填写邀请');
     const email = (wp.contractorEmail || '').trim();
     if (!email) throw new BadRequestException('请先填写承包商联系邮箱');
     const { token, expiresAt } = await this.tokens.create({

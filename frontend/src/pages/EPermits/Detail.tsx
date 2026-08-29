@@ -196,39 +196,45 @@ export default function EPermitDetail() {
         </section>
       )}
 
-      {/* 承包商协同（P0/P1/P2）：草稿态由员工发起免登录填写邀请；承包商填内容+风险识别后回传 */}
-      {d.status === 'draft' && (canEdit || hasPerm(user, 'epermit:create') || hasPerm(user, 'epermit:view_all')) && (
+      {/* 承包商协同（P0/P1/P2）：有权限即可见；draft/rejected 可发起邀请，已发邀请/已提交展示状态 */}
+      {(canEdit || hasPerm(user, 'epermit:create') || hasPerm(user, 'epermit:view_all')) && (
         <section className="card p-4 space-y-3">
           <div className="flex items-center gap-2">
             <Users size={17} className="text-primary" />
             <span className="text-sm font-semibold">承包商协同</span>
             {d.contractorSubmittedAt && (
-              <span className="text-[11px] text-success">承包商已于 {dayjs(d.contractorSubmittedAt).format('MM-DD HH:mm')} 提交，可核对后送审</span>
+              <span className="text-[11px] text-success">承包商已于 {dayjs(d.contractorSubmittedAt).format('MM-DD HH:mm')} 提交</span>
             )}
           </div>
           <div className="text-xs text-muted-foreground">
             承包商邮箱：{d.contractorEmail || <span className="text-warning">未填写 — 请先在「编辑」中填写承包商联系邮箱</span>}
+            {!['draft', 'rejected'].includes(d.status) && !d.contractorInviteToken && (
+              <span className="ml-2">（当前状态 {d.status}，如需邀请承包商请先编辑为草稿后重新提交）</span>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {!invite && (
+            {!invite && ['draft', 'rejected'].includes(d.status) && (
               <Button size="sm" variant="secondary" disabled={inviteBusy || !d.contractorEmail} onClick={sendContractorInvite}>
                 <Link2 size={14} className="mr-1" />{inviteBusy ? '生成中…' : '生成承包商填写邀请'}
               </Button>
             )}
-            {invite && (
-              <div className="flex flex-wrap items-center gap-3 w-full">
-                <div className="text-xs bg-muted rounded-md px-2.5 py-1.5 flex-1 min-w-[220px] break-all">{invite.url}</div>
-                <Button size="sm" variant="secondary" onClick={() => copyLink(invite.url)}>复制链接</Button>
-                {invite.emailSkipped && <span className="text-[11px] text-warning">邮件未配置已跳过，请用链接/二维码邀请</span>}
-                <div className="flex items-center gap-2">
-                  <QRCodeCanvas value={invite.url} size={110} level="M" />
-                  <div className="text-[10px] text-muted-foreground max-w-[120px]">承包商扫码免登录填写（{dayjs(invite.expiresAt).format('MM-DD HH:mm')} 前有效）</div>
+            {(invite || d.contractorInviteToken) && (() => {
+              const shown = invite || { url: `${window.location.origin}/public/contractor-fill/${d.contractorInviteToken}`, emailSkipped: false, expiresAt: d.contractorInviteExpiresAt };
+              return (
+                <div className="flex flex-wrap items-center gap-3 w-full">
+                  <div className="text-xs bg-muted rounded-md px-2.5 py-1.5 flex-1 min-w-[220px] break-all">{shown.url}</div>
+                  <Button size="sm" variant="secondary" onClick={() => copyLink(shown.url)}>复制链接</Button>
+                  {shown.emailSkipped && <span className="text-[11px] text-warning">邮件未配置已跳过，请用链接/二维码邀请</span>}
+                  <div className="flex items-center gap-2">
+                    <QRCodeCanvas value={shown.url} size={110} level="M" />
+                    <div className="text-[10px] text-muted-foreground max-w-[120px]">承包商扫码免登录填写{shown.expiresAt ? `（${dayjs(shown.expiresAt).format('MM-DD HH:mm')} 前有效）` : ''}</div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
             {d.isHazardous && (
               <>
-                {!workerInvite && !d.contractorSubmittedAt && (
+                {!workerInvite && !d.contractorSubmittedAt && ['draft', 'rejected'].includes(d.status) && (
                   <Button size="sm" variant="secondary" disabled={inviteBusy || !d.contractorEmail} onClick={sendWorkerInvite}>
                     生成作业人员填写邀请
                   </Button>

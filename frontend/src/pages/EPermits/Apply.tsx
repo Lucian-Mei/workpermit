@@ -8,8 +8,9 @@ import { DateTimeInput } from '@/components/DateTimeInput';
 import { SignaturePad } from '@/components/SignaturePad';
 import { WORK_PERMIT_TYPES } from '@/constants';
 import { rememberRecent, getRecent } from '@/utils/recentRecall';
+import { QRCodeCanvas } from 'qrcode.react';
 import {
-  FileText, AlertTriangle, Link2, FileUp, ShieldCheck, Sparkles, Plus, X, Smartphone, ClipboardList, Info, CheckCircle2, Send,
+  FileText, AlertTriangle, Link2, FileUp, ShieldCheck, Sparkles, Plus, X, Smartphone, ClipboardList, Info, CheckCircle2, Send, Users, Copy,
   Flame, Mountain, Box, Truck, Shovel, Plug, Disc, Wrench, PenLine,
 } from 'lucide-react';
 import dayjs from 'dayjs';
@@ -67,6 +68,10 @@ export default function EApplicationApply() {
   const [permitNo, setPermitNo] = useState('');
   const [wpCreated, setWpCreated] = useState(false);
   const [wpId, setWpId] = useState(''); // 关联的作业票 id（提交时需同步 submit 进作业管理列表）
+  // 承包商协同：向导内直接发起免登录填写邀请（保存草稿后可生成）
+  const [applyInvite, setApplyInvite] = useState<any>(null);
+  const [applyInviteBusy, setApplyInviteBusy] = useState(false);
+  const [applyCopyTip, setApplyCopyTip] = useState('');
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [wpStatus, setWpStatus] = useState('');
@@ -368,6 +373,31 @@ export default function EApplicationApply() {
     return id;
   }
 
+  // 承包商协同：保存草稿后即可在向导内生成免登录填写邀请（72h，邮件不可用自动降级为链接）
+  async function sendApplyInvite() {
+    if (!form.contractorEmail?.trim()) { setErr('请先填写承包商联系邮箱'); return; }
+    const id = await ensureWp();
+    await saveWp();
+    setApplyInviteBusy(true); setErr('');
+    try {
+      const { data } = await api.post(`/e-permits/${id}/contractor-invite`);
+      setApplyInvite(data);
+    } catch (e: any) {
+      setErr(e?.response?.data?.message || '生成邀请失败');
+    } finally {
+      setApplyInviteBusy(false);
+    }
+  }
+  async function copyApplyLink(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setApplyCopyTip('链接已复制，可发送给承包商');
+      setTimeout(() => setApplyCopyTip(''), 2500);
+    } catch {
+      setApplyCopyTip('复制失败，请手动选择链接');
+    }
+  }
+
   async function runJsa() {
     setErr('');
     const cleanSteps = steps.filter((s) => s.trim());
@@ -540,6 +570,42 @@ export default function EApplicationApply() {
       )}
       {msg && (
         <div className="rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">{msg}</div>
+      )}
+
+      {/* 承包商协同（向导内直接发起）：填了承包商邮箱即可见；点按钮自动保存草稿并生成邀请 */}
+      {form.contractorEmail?.trim() && (
+        <section className="card p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Users size={17} className="text-primary" />
+            <span className="text-sm font-semibold">承包商协同</span>
+            <span className="text-[11px] text-muted-foreground">员工填基础信息 → 承包商免登录做风险识别 → 回传复核</span>
+          </div>
+          {!applyInvite ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button size="sm" variant="secondary" disabled={applyInviteBusy} onClick={sendApplyInvite}>
+                <Link2 size={14} className="mr-1" />{applyInviteBusy ? '生成中…' : '生成承包商填写邀请'}
+              </Button>
+              <span className="text-[11px] text-muted-foreground">发送至 {form.contractorEmail}（未配置邮件时自动转为链接/二维码，不阻塞流程）</span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="text-xs bg-muted rounded-md px-2.5 py-1.5 flex-1 min-w-[220px] break-all">{applyInvite.url}</div>
+                <Button size="sm" variant="secondary" onClick={() => copyApplyLink(applyInvite.url)}><Copy size={13} className="mr-1" />复制</Button>
+                {applyInvite.emailSkipped && <span className="text-[11px] text-warning">邮件未配置已跳过，请复制链接或扫二维码发送</span>}
+              </div>
+              <div className="flex items-center gap-3">
+                <QRCodeCanvas value={applyInvite.url} size={96} level="M" />
+                <div className="text-[11px] text-muted-foreground">
+                  承包商扫码免登录填写<br />
+                  {dayjs(applyInvite.expiresAt).format('MM-DD HH:mm')} 前有效<br />
+                  提交后回到本页或详情页核对送审
+                </div>
+              </div>
+              {applyCopyTip && <div className="text-xs text-success">{applyCopyTip}</div>}
+            </div>
+          )}
+        </section>
       )}
 
       <div className="grid grid-cols-1 gap-[var(--gap-card)] lg:grid-cols-3">
